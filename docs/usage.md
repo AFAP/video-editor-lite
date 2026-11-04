@@ -4,9 +4,9 @@
 
 ## 启动
 
-双击 `启动视频工具.bat`，或在本目录运行 `npm start` 后访问 http://127.0.0.1:8787/ 。需要 Node.js 18+、FFmpeg 和 ffprobe。可以通过 `FFMPEG_PATH` 指定 FFmpeg 的路径。
+直接用浏览器打开 `index.html` 即可编辑和导出，无需 Node.js 或 FFmpeg。浏览器导出通过实时录制完成，需要让页面保持在前台，输出格式由浏览器决定。
 
-也可直接打开 `index.html`，不运行桥接器时使用浏览器实时录制导出。**AI 语音功能需要通过桥接器的网页地址访问**，不能在 `file://` 页面调用。
+需要更快导出时，安装 Node.js 18+、FFmpeg 和 ffprobe，双击 `启动视频工具.bat`，或在本目录运行 `npm start` 后访问 http://127.0.0.1:8787/ 。桥接器会调用本机 FFmpeg；可以通过 `FFMPEG_PATH` 指定其路径。**AI 语音功能也需要通过桥接器的网页地址访问**，不能在 `file://` 页面调用。
 
 目录入口为 `index.html`。浏览器标签页使用荧光绿剪刀图标，SVG 已嵌入页面；同时提供 `favicon.svg`、多尺寸 `favicon.ico` 和 PNG 图标。桥接器的 `/` 与 `/index.html` 均返回该入口。
 
