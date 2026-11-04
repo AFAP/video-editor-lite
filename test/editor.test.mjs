@@ -1,0 +1,453 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import test from 'node:test';
+import { createHash } from 'node:crypto';
+
+// Run the shipped inline script in an isolated lightweight DOM adapter.
+// These tests cover editing state; visual layout is verified separately.
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
+
+class Element {
+  constructor() {
+    this.style = { setProperty() {} };
+    this.classList = { add() {}, remove() {}, toggle() {} };
+    this.listeners = {};
+    this.dataset = {};
+    this.attributes = {};
+    this.children = [];
+    this.value = '';
+    this.innerHTML = '';
+    this.textContent = '';
+    this.width = 1280; this.height = 720;
+    this.clientWidth = 900; this.clientHeight = 440;
+  }
+  addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
+  setAttribute(key, value) { this.attributes[key] = String(value); }
+  getAttribute(key) { return this.attributes[key] ?? null; }
+  removeAttribute(key) { delete this.attributes[key]; }
+  appendChild(node) { this.children.push(node); }
+  querySelector() { return new Element(); }
+  getContext() { return new Proxy({}, {get: (_, key) => key === 'measureText' ? text => ({width:String(text).length*8}) : key === 'createLinearGradient' || key === 'createRadialGradient' ? () => ({addColorStop() {}}) : () => {}}); }
+  toDataURL() { return 'data:image/png;base64,test'; }
+  getBoundingClientRect() { return {left:0,top:0,width:900,height:440}; }
+  focus() {} select() {} contains() { return false; }
+  showModal() { this.open=true; } close() { this.open=false; }
+}
+
+function editor({storageBlocked = false} = {}) {
+  const frames = [];
+  const clock = {time:0};
+  const elements = new Map(ids.map(id => [id, new Element()]));
+  const generic = new Element();
+  const document = {
+    body:new Element(), activeElement:null, listeners:{},
+    querySelector(selector) {
+      if (selector.startsWith('#')) return elements.get(selector.slice(1)) ?? null;
+      if (selector === 'dialog[open]') return null;
+      return generic;
+    },
+    createElement() { return new Element(); },
+    addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); },
+  };
+  const context = vm.createContext({
+    document, location:{port:''}, console, structuredClone, performance:{now:()=>clock.time},
+    localStorage:{getItem() { if (storageBlocked) throw Error('blocked'); return null; },setItem() {}},
+    setTimeout:() => 1, clearTimeout() {}, setInterval() {},
+    requestAnimationFrame:fn => { frames.push(fn); return frames.length; },
+    AbortController, ResizeObserver:class {observe() {}},
+    Image:class {constructor(){this.naturalWidth=256;this.naturalHeight=256;this.complete=true;}async decode(){}},
+    fetch:async () => ({ok:true,json:async () => ({ok:true,version:'test'})}),
+    MediaRecorder:{isTypeSupported:() => true},
+    window:{addEventListener() {},removeEventListener() {}},
+  });
+  let js = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+  js = js.replace(/\}\)\(\);\s*$/, `globalThis.testApi = { S, settings, bridge, history,
+    appendClip, layout, outputSize, splitAtPlayhead, duplicateSelected,
+    deleteSelected, commitHistory, undo, redo, readSettings, updateOutputNote, togglePlay,
+    activeRows, visualRows, totalDuration, addTrack, moveClipTo, mediaForClip, clipVolume, mediaKind,
+    parseSrt,serializeSrt,setSpeechDraft,speechState,validateSpeechDraft,applySpeechCaptions,
+    buildProject,validateProject,prepareProject,applyProject,projectState,connectPreviousClip,transitionState,
+    transitionCuts,transitionItems,insertTransition,removeTransition,selectedTransition,reconcileLinkedTransitions,paintTransitionDemo,
+    createFancyText,applyFancyToSelected,applyTextPreset,FANCY_TEXT_PRESETS,FANCY_CATEGORIES,TEXT_PRESETS,createSticker,STICKER_ASSETS,STICKER_CATEGORIES,STICKER_ATLAS_SIZE,drawTextLayer,filterLibraryItems,
+    quiet() { renderSources = renderTimeline = renderPanels = drawAt = updateSummary = refreshHistoryUi = () => {};
+      seek = time => { S.time = clamp(time,0,totalDuration()); };
+      stopPlayback = () => { S.playing = false; };
+    }
+  }; })();`);
+  vm.runInContext(js, context, {timeout:2000});
+  const api = context.testApi;
+  api.quiet();
+  return {api, elements, document, frames, clock};
+}
+
+function playbackMedia(initialTime) {
+  let time = initialTime;
+  const listeners = new Set();
+  return {
+    readyState:2, ended:false, playStarts:[], seekTargets:[],
+    get currentTime() { return time; },
+    set currentTime(value) {
+      time = value; this.seekTargets.push(value);
+      queueMicrotask(() => { for (const fn of [...listeners]) fn(); });
+    },
+    addEventListener(type, fn) { if (type === 'seeked') listeners.add(fn); },
+    removeEventListener(type, fn) { if (type === 'seeked') listeners.delete(fn); },
+    async play() { this.playStarts.push(time); },
+    pause() {},
+    advance(value) { time = value; },
+  };
+}
+
+async function untilFrame(frames) {
+  for (let n=0;n<20 && !frames.length;n++) await Promise.resolve();
+  assert.ok(frames.length,'playback should reach its first animation frame');
+}
+
+async function pausePlayback(api, frames, playback) {
+  await api.togglePlay();
+  while (frames.length) frames.shift()();
+  await playback;
+}
+
+test('single-page document has unique IDs and every literal ID reference exists', () => {
+  assert.equal(new Set(ids).size, ids.length);
+  for (const match of html.matchAll(/\$\(['"]#([\w-]+)['"]\)/g)) assert.ok(ids.includes(match[1]), match[1]);
+  assert.equal((html.match(/<script\b/g) || []).length, 1);
+  assert.ok(!/<(?:script|link)[^>]+(?:src|href)=["']https?:/i.test(html));
+});
+
+test('shipped script starts with available or blocked browser storage', () => {
+  assert.ok(editor().api);
+  assert.deepEqual(JSON.parse(JSON.stringify(editor({storageBlocked:true}).api.readSettings())), {});
+});
+
+function seed(api) {
+  const source = {id:'source',name:'sample.mp4',duration:10,width:1920,height:1080,size:1024,el:{pause() {}},url:'blob:test'};
+  api.S.sources.push(source);
+  const clip = api.appendClip(source,1,9);
+  return {source,clip};
+}
+
+test('split preserves transform, volume, mute and fades on both halves', () => {
+  const {api} = editor(); const {clip} = seed(api);
+  Object.assign(clip,{scale:.65,ox:.12,oy:-.2,volume:.3,muted:true,fadeIn:.5,fadeOut:1});
+  api.S.time = 3;
+  api.splitAtPlayhead();
+  assert.equal(api.S.clips.length,2);
+  const [left,right] = api.S.clips;
+  assert.equal(left.out,4); assert.equal(right.in,4); assert.equal(right.out,9);
+  assert.notEqual(left.id,right.id);
+  for (const prop of ['scale','ox','oy','volume','muted','fadeIn','fadeOut']) assert.equal(left[prop],right[prop],prop);
+  assert.equal(api.layout().at(-1).end,8);
+});
+
+test('split at a boundary does not create zero-length clips', () => {
+  const {api} = editor(); seed(api);
+  api.S.time = 0; api.splitAtPlayhead(); assert.equal(api.S.clips.length,1);
+  api.S.time = 8; api.splitAtPlayhead(); assert.equal(api.S.clips.length,1);
+});
+
+test('delete, undo and redo restore clips and their media references', () => {
+  const {api} = editor(); const {source} = seed(api); api.commitHistory();
+  api.deleteSelected(); api.commitHistory(); assert.equal(api.S.clips.length,0);
+  api.undo(); assert.equal(api.S.clips.length,1); assert.equal(api.S.sources[0],source);
+  api.redo(); assert.equal(api.S.clips.length,0);
+});
+
+test('removing a source can be undone without cloning its video element', () => {
+  const {api} = editor(); const {source} = seed(api); api.commitHistory();
+  api.S.sources = []; api.S.clips = []; api.S.selected = null; api.commitHistory();
+  api.undo(); assert.equal(api.S.sources[0],source); assert.equal(api.S.sources[0].url,'blob:test');
+});
+
+test('new edit after undo discards redo and history has a bounded size', () => {
+  const {api} = editor(); const {clip} = seed(api); api.commitHistory();
+  clip.scale = 2; api.commitHistory(); api.undo();
+  api.S.clips[0].volume = .5; api.commitHistory();
+  const index = api.history.index; api.redo(); assert.equal(api.history.index,index);
+  for (let n=0;n<80;n++) { api.S.clips[0].ox = n/100; api.commitHistory(); }
+  assert.equal(api.history.entries.length,60);
+});
+
+test('duplicating a clip preserves its edits and gives it a unique ID', () => {
+  const {api} = editor(); const {clip} = seed(api); clip.scale = .7;
+  api.duplicateSelected(); assert.equal(api.S.clips.length,2);
+  assert.equal(api.S.clips[1].scale,.7); assert.notEqual(api.S.clips[1].id,clip.id);
+});
+
+test('output uses the first source aspect ratio with even dimensions', () => {
+  const {api} = editor(); const {source} = seed(api);
+  source.width=1080; source.height=1920; api.settings.size='1280';
+  const {w,h} = api.outputSize(); assert.equal(w%2,0); assert.equal(h%2,0);
+  assert.ok(Math.abs(w/h - 9/16) < .003); assert.ok(h<=1280);
+});
+
+test('bridge format is locked to MP4 only when all timeline media are uploaded', () => {
+  const {api,elements} = editor(); const {source} = seed(api);
+  api.bridge.base='http://127.0.0.1:8787'; api.settings.format='webm';
+  api.updateOutputNote(); assert.equal(elements.get('setFormat').disabled,false);
+  source.bridgeId='remote-id'; api.updateOutputNote();
+  assert.equal(elements.get('setFormat').disabled,true); assert.equal(elements.get('setFormat').value,'mp4');
+  assert.equal(api.settings.format,'webm');
+});
+
+for (const nextIn of [90,10]) test(`play from the current cursor when adjacent clips share media (next in ${nextIn}s)`, async () => {
+  const {api,frames,clock} = editor();
+  const media = playbackMedia(81);
+  const source = {id:'shared',duration:200,el:media};
+  api.S.sources.push(source);
+  api.appendClip(source,10,90);
+  api.appendClip(source,nextIn,nextIn+40);
+  api.S.time=71;
+  const playback=api.togglePlay();
+  try {
+    await untilFrame(frames);
+    assert.equal(api.S.time,71,'the timeline cursor must not jump when Play is pressed');
+    assert.equal(media.currentTime,81,'preparing the next clip must not seek the active video');
+    assert.deepEqual(media.playStarts,[81]);
+  } finally { await pausePlayback(api,frames,playback); }
+});
+
+test('pause and resume keep the current position inside a split clip', async () => {
+  const {api,frames,clock} = editor();
+  const media=playbackMedia(81),source={id:'shared',duration:200,el:media};
+  api.S.sources.push(source); api.appendClip(source,10,90); api.appendClip(source,90,200);
+  api.S.time=71;
+  let playback=api.togglePlay();
+  await untilFrame(frames);
+  media.advance(82); clock.time+=1000; frames.shift()();
+  assert.equal(api.S.time,72);
+  await pausePlayback(api,frames,playback);
+  playback=api.togglePlay();
+  try {
+    await untilFrame(frames);
+    assert.equal(api.S.time,72);
+    assert.equal(media.currentTime,82);
+  } finally { await pausePlayback(api,frames,playback); }
+});
+
+test('image/audio/video detection accepts common extensions without MIME hints', () => {
+  const {api}=editor();
+  for(const name of ['logo.PNG','photo.jpg','photo.webp'])assert.equal(api.mediaKind({name}),'image');
+  for(const name of ['voice.wav','music.mp3','music.flac','voice.m4a'])assert.equal(api.mediaKind({name}),'audio');
+  assert.equal(api.mediaKind({name:'movie.MKV'}),'video');assert.equal(api.mediaKind({name:'notes.txt'}),'');
+});
+
+test('parallel tracks use independent start times and total duration is their maximum', () => {
+  const {api}=editor();const {source,clip}=seed(api);
+  const audio={id:'audio',kind:'audio',duration:20};api.S.sources.push(audio);
+  const music=api.appendClip(audio,0,20);assert.equal(music.trackId,'a1');assert.equal(music.start,0);
+  api.moveClipTo(clip,5,'v2');assert.equal(api.totalDuration(),20);
+  assert.equal(api.activeRows(6).length,2);assert.equal(api.activeRows(19).length,1);
+  assert.equal(api.moveClipTo(music,0,'v1'),false);
+});
+
+test('image duration can be extended, split, and placed over the primary video', () => {
+  const {api}=editor();seed(api);const image={id:'image',kind:'image',duration:86400,width:500,height:500};api.S.sources.push(image);
+  const overlay=api.appendClip(image,0,5,'v2');overlay.out=12;api.moveClipTo(overlay,2,'v2');
+  assert.equal(api.totalDuration(),14);assert.equal(api.visualRows(3).at(-1).clip,overlay);
+  api.S.time=6;api.splitAtPlayhead();
+  const right=api.S.clips.find(c=>c.id===api.S.selected.id);
+  assert.equal(right.start,6);assert.equal(right.trackId,'v2');assert.equal(right.in,4);assert.equal(api.totalDuration(),14);
+});
+
+test('deleting a clip preserves the timing of clips on other tracks', () => {
+  const {api}=editor();const {clip}=seed(api);const source={id:'audio',kind:'audio',duration:20};api.S.sources.push(source);
+  const audio=api.appendClip(source,0,5);api.moveClipTo(audio,10,'a1');api.S.selected={type:'clip',id:clip.id};
+  api.deleteSelected();assert.equal(audio.start,10);assert.equal(api.totalDuration(),15);
+});
+
+test('track creation, mute and layer movement are undoable', () => {
+  const {api}=editor();const {clip}=seed(api);api.commitHistory();
+  api.addTrack('audio');assert.equal(api.S.tracks.filter(t=>t.kind==='audio').length,2);
+  api.undo();assert.equal(api.S.tracks.filter(t=>t.kind==='audio').length,1);api.redo();
+  api.moveClipTo(api.S.clips[0],4,'v2');api.S.tracks.find(t=>t.id==='v2').muted=true;api.commitHistory();
+  api.undo();assert.equal(api.S.clips[0].start,0);assert.equal(api.S.clips[0].trackId,'v1');
+});
+
+test('tracks can grow dynamically beyond the initial four without reusing IDs', () => {
+  const {api}=editor();
+  for(let n=0;n<8;n++)api.addTrack('visual');
+  for(let n=0;n<5;n++)api.addTrack('audio');
+  for(let n=0;n<3;n++)api.addTrack('text');
+  assert.equal(api.S.tracks.length,20);
+  assert.equal(new Set(api.S.tracks.map(t=>t.id)).size,20);
+  api.undo();assert.equal(api.S.tracks.length,19);api.redo();assert.equal(api.S.tracks.length,20);
+});
+
+test('overlapping copies of a file receive independent media decoders', () => {
+  const {api}=editor();
+  const original={cloneNode(){return {...playbackMedia(0),load(){},remove(){}};}};
+  const source={id:'shared',kind:'video',duration:20,el:original};api.S.sources.push(source);
+  const first=api.appendClip(source,0,5,'v1'),second=api.appendClip(source,10,15,'v2');
+  const a=api.mediaForClip(first),b=api.mediaForClip(second);
+  assert.notEqual(a.el,b.el);a.el.currentTime=2;b.el.currentTime=12;assert.equal(a.el.currentTime,2);
+});
+
+test('track visibility and audio fade envelopes affect the timed composition', () => {
+  const {api}=editor();const {clip}=seed(api);clip.volume=.8;clip.fadeIn=2;clip.fadeOut=2;
+  assert.equal(api.clipVolume(clip,1,8),.4);assert.equal(api.clipVolume(clip,7,8),.4);
+  api.S.tracks.find(t=>t.id==='v1').muted=true;assert.equal(api.clipVolume(clip,4,8),0);
+  api.S.tracks.find(t=>t.id==='v1').hidden=true;assert.equal(api.activeRows(1).length,0);
+});
+
+test('SRT supports BOM, CRLF, multiline captions and millisecond round trips',()=>{
+  const {api}=editor();const source='\uFEFF1\r\n00:00:01,125 --> 00:00:03,750\r\n第一行\r\n第二行\r\n\r\n2\r\n00:01:00,000 --> 00:01:02,100\r\nHello world';
+  const cues=api.parseSrt(source);assert.equal(cues.length,2);assert.equal(cues[0].start,1.125);assert.equal(cues[0].text,'第一行\n第二行');
+  assert.equal(JSON.stringify(api.parseSrt(api.serializeSrt(cues))),JSON.stringify(cues));
+  assert.throws(()=>api.parseSrt('1\n00:00:04,000 --> 00:00:03,000\nbad'),/无效区间/);
+});
+
+test('AI subtitle drafts do not alter the timeline until applied, and apply is undoable',()=>{
+  const {api,elements}=editor();api.setSpeechDraft([{start:.1,end:1.2,text:'测试字幕'}],{offset:5});
+  assert.equal(api.S.texts.length,0);assert.equal(api.S.tracks.length,4);
+  api.applySpeechCaptions();assert.equal(api.S.texts.length,1);assert.equal(api.S.texts[0].start,5.1);assert.equal(api.S.texts[0].end,6.2);assert.equal(api.S.tracks.length,5);
+  api.undo();assert.equal(api.S.texts.length,0);assert.equal(api.S.tracks.length,4);api.redo();assert.equal(api.S.texts.length,1);
+});
+
+test('ASR captions map to a moved clip while preserving the analyzed trim range',()=>{
+  const {api}=editor();const {clip}=seed(api);
+  api.setSpeechDraft([{start:1,end:2,text:'片段内字幕'}],{offset:clip.start,context:{clipId:clip.id,sourceId:clip.sourceId,in:clip.in,out:clip.out,start:clip.start}});
+  clip.start=12;assert.equal(api.validateSpeechDraft()[0].start,13);
+  clip.in+=1;api.applySpeechCaptions();assert.equal(api.S.texts.length,0,'stale ASR trims must not create misaligned captions');
+});
+
+test('cross-clip transitions overlap only the selected clip and preserve other track timing',()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';
+  const next=api.appendClip(source,1,9,'v1');const audio={id:'audio',kind:'audio',duration:20};api.S.sources.push(audio);const music=api.appendClip(audio,0,10,'a1');music.start=5;
+  const overlap=api.connectPreviousClip(next,'fade',.5);assert.equal(overlap,.5);assert.equal(next.start,7.5);assert.equal(clip.start,0);assert.equal(music.start,5);
+  assert.equal(api.transitionState(next,.25,1280,720).alpha,.5);assert.equal(next.fadeIn,.5);assert.equal(clip.fadeOut,.5);
+});
+
+test('project JSON excludes keys and runtime media and restores edits as an undoable operation',async()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';source.apiKey='secret-media';api.settings.apiKey='secret-setting';
+  clip.transitionIn={type:'wipeleft',duration:.4};api.settings.aspect='portrait';api.commitHistory();
+  const project=api.buildProject();assert.ok(!JSON.stringify(project).includes('secret'));assert.equal(project.sources[0].el,undefined);assert.equal(api.validateProject(project),project);
+  clip.scale=2;api.settings.aspect='source';api.commitHistory();await api.prepareProject(project);await api.applyProject();
+  assert.equal(api.S.clips[0].scale,1);assert.equal(api.S.clips[0].transitionIn.type,'wipeleft');assert.equal(api.settings.aspect,'portrait');api.undo();assert.equal(api.S.clips[0].scale,2);assert.equal(api.settings.aspect,'source');
+});
+
+test('transition assets become selectable boundary items and replacement/removal are undoable',()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';clip.fadeOut=.2;
+  const next=api.appendClip(source,0,8,'v1');next.fadeIn=.1;api.commitHistory();
+  assert.equal(api.transitionCuts().length,1);api.insertTransition('wipeleft',clip,next,.8);api.S.selected={type:'transition',id:next.id+':in'};api.commitHistory();
+  const item=api.selectedTransition();assert.equal(item.from,clip);assert.equal(item.type,'wipeleft');assert.equal(item.start,7.2);assert.equal(item.end,8);
+  api.insertTransition('slideleft',clip,next,1.2);assert.equal(next.start,6.8);assert.equal(api.transitionItems().length,1);
+  api.removeTransition(api.selectedTransition());api.commitHistory();assert.equal(next.start,8);assert.equal(next.transitionIn,undefined);assert.equal(clip.fadeOut,.2);assert.equal(next.fadeIn,.1);
+  api.undo();assert.equal(api.transitionItems()[0].type,'wipeleft');api.redo();assert.equal(api.transitionItems().length,0);
+});
+
+test('transition links survive project restore with remapped clip IDs',async()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';const next=api.appendClip(source,0,8,'v1');api.insertTransition('fade',clip,next,.6);
+  const project=api.buildProject();api.validateProject(project);await api.prepareProject(project);await api.applyProject();api.reconcileLinkedTransitions();
+  assert.equal(api.transitionItems().length,1);assert.equal(api.transitionItems()[0].from.id,api.S.clips[0].id);assert.notEqual(api.S.clips[0].id,clip.id);assert.equal(api.S.clips[1].start,7.4);
+});
+
+test('deleting a linked clip clears its transition and restores the other audio envelope',()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';clip.fadeOut=.2;const next=api.appendClip(source,0,8,'v1');api.insertTransition('fade',clip,next,.5);
+  api.S.selected={type:'clip',id:next.id};api.deleteSelected();api.reconcileLinkedTransitions();assert.equal(api.S.clips.length,1);assert.equal(api.transitionItems().length,0);assert.equal(clip.fadeOut,.2);
+});
+
+test('transition preview playback stops at its range instead of playing the whole timeline',async()=>{
+  const {api,frames,clock}=editor();seed(api);api.S.time=2;const playback=api.togglePlay({end:3});await untilFrame(frames);clock.time=1500;frames.shift()();await playback;assert.equal(api.S.time,3);assert.equal(api.S.playing,false);
+});
+
+test('moving clips apart detaches a transition without moving unrelated media',()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';const next=api.appendClip(source,0,8,'v1');api.insertTransition('fade',clip,next,.5);next.start=20;api.reconcileLinkedTransitions();assert.equal(next.start,20);assert.equal(next.transitionIn,undefined);assert.equal(clip.fadeOut,0);
+});
+
+test('older overlapping clip effects migrate to visible linked transition items',()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';const next=api.appendClip(source,0,8,'v1');next.start=7.5;next.transitionIn={type:'fade',duration:.5};next.fadeIn=.5;clip.fadeOut=.5;
+  api.reconcileLinkedTransitions();assert.equal(next.transitionIn.fromId,clip.id);api.removeTransition(api.transitionItems()[0]);assert.equal(next.start,8);assert.equal(clip.fadeOut,0);assert.equal(next.fadeIn,0);
+});
+
+test('fancy type is editable timed text, supports standalone projects and undo',()=>{
+  const {api,elements}=editor();const text=api.createFancyText('neon-purple');assert.equal(api.S.clips.length,0);assert.equal(api.totalDuration(),4);assert.equal(text.effect,'neon');
+  elements.get('txContent').value='换成我的标题';for(const handler of elements.get('txContent').listeners.input)handler();assert.equal(text.content,'换成我的标题');assert.equal(text.glow,28);
+  elements.get('txEnd').value='10';for(const handler of elements.get('txEnd').listeners.input)handler();assert.equal(text.end,10);api.commitHistory();api.undo();assert.equal(api.S.texts[0].end,4);api.undo();assert.equal(api.S.texts.length,0);
+});
+
+test('applying fancy styles preserves content and timing and basic presets clear advanced effects',()=>{
+  const {api}=editor();const text=api.createFancyText('ice');text.content='自定义标题';text.start=1;text.end=7;api.applyFancyToSelected('neon-blue');assert.equal(text.content,'自定义标题');assert.equal(text.start,1);assert.equal(text.end,7);assert.equal(text.effect,'neon');
+  api.applyTextPreset(text,api.TEXT_PRESETS[0]);for(const key of ['effect','glow','glowColor','depth','gradientColor','outlineWidth'])assert.equal(text[key],undefined,key);
+});
+
+test('fancy text styling round-trips through project save/load',async()=>{
+  const {api}=editor();api.createFancyText('gold');const project=api.buildProject();api.validateProject(project);await api.prepareProject(project);await api.applyProject();assert.equal(api.S.texts[0].effect,'gold');assert.equal(api.S.texts[0].gradientColor,'#dc8c22');assert.equal(api.S.texts[0].depth,4);
+});
+
+test('thirty distinct fancy presets serialize and restore their editable typography',async()=>{
+  const {api}=editor();assert.equal(api.FANCY_TEXT_PRESETS.length,30);assert.equal(new Set(api.FANCY_TEXT_PRESETS.map(p=>p.id)).size,30);
+  for(const preset of api.FANCY_TEXT_PRESETS)api.createFancyText(preset.id);
+  const project=api.buildProject();api.validateProject(project);await api.prepareProject(project);await api.applyProject();
+  assert.equal(api.S.texts.length,30);assert.equal(api.S.texts.find(t=>t.presetId==='hollow').effect,'outline');assert.equal(api.S.texts.find(t=>t.presetId==='duotone').accentColor,'#ff588f');assert.equal(api.S.texts.find(t=>t.presetId==='sport').italic,true);assert.equal(api.S.texts.find(t=>t.presetId==='bookish').fontFace,'serif');assert.equal(api.S.texts.find(t=>t.presetId==='highlight').underline,true);
+});
+
+test('material search combines category, Chinese names and English IDs',()=>{
+  const {api}=editor();assert.equal(api.filterLibraryItems(api.FANCY_TEXT_PRESETS,'neon','',api.FANCY_CATEGORIES).length,4);
+  assert.equal(api.filterLibraryItems(api.FANCY_TEXT_PRESETS,'','宋体',api.FANCY_CATEGORIES)[0].id,'bookish');assert.equal(api.filterLibraryItems(api.FANCY_TEXT_PRESETS,'','DUOTONE',api.FANCY_CATEGORIES)[0].id,'duotone');assert.equal(api.filterLibraryItems(api.FANCY_TEXT_PRESETS,'neon','宋体',api.FANCY_CATEGORIES).length,0);
+});
+
+test('112 unique sticker PNGs match the embedded atlas and preserve old project IDs',()=>{
+  const {api}=editor(),manifest=JSON.parse(readFileSync(new URL('../assets/stickers/sticker-atlas-112.json',import.meta.url),'utf8'));
+  assert.equal(api.STICKER_ASSETS.length,112);assert.equal(manifest.frames.length,112);assert.equal(new Set(manifest.frames.map(f=>f.id)).size,112);
+  assert.deepEqual(JSON.parse(JSON.stringify(api.STICKER_ATLAS_SIZE)),manifest.size);const cells=new Set(),hashes=new Set();
+  for(const frame of manifest.frames){assert.ok(frame.x>=0&&frame.y>=0&&frame.x+frame.w<=manifest.size.w&&frame.y+frame.h<=manifest.size.h);cells.add(frame.x+':'+frame.y);const png=readFileSync(new URL('../assets/stickers/'+frame.file,import.meta.url));assert.equal(png.readUInt32BE(16),256);assert.equal(png.readUInt32BE(20),256);assert.equal(png[25],6,'RGBA: '+frame.id);hashes.add(createHash('sha256').update(png).digest('hex'));}
+  assert.equal(cells.size,112);assert.equal(hashes.size,112);
+  for(const category of Object.keys(manifest.categories))assert.equal(api.filterLibraryItems(api.STICKER_ASSETS,category,'',api.STICKER_CATEGORIES).length,16,category);
+  for(const id of ['heart','like','stars','rocket'])assert.ok(api.STICKER_ASSETS.some(item=>item.id===id));
+});
+
+test('stickers use upper visual tracks and restore from atlas IDs without embedding image bytes',async()=>{
+  const {api}=editor();const clip=await api.createSticker('heart',{at:2});assert.ok(clip);assert.equal(clip.trackId,'v2');assert.equal(clip.start,2);assert.equal(clip.scale,.28);
+  const project=api.buildProject({draft:true});assert.equal(project.sources[0].stickerId,'heart');assert.equal(project.sources[0].inlineImage,undefined);api.validateProject(project);
+  api.S.sources=[];api.S.clips=[];await api.prepareProject(project);await api.applyProject();assert.equal(api.S.sources[0].stickerId,'heart');assert.equal(api.S.clips[0].start,2);assert.equal(api.S.sources[0].kind,'image');
+});
+
+test('stickers create an upper track when existing footage occupies the highest visual track',async()=>{
+  const {api}=editor();const {clip}=seed(api);api.moveClipTo(clip,0,'v2');const sticker=await api.createSticker('stars');assert.equal(sticker.trackId,'v3');assert.equal(api.S.tracks.filter(t=>t.kind==='visual')[0].id,'v3');
+});
+
+test('invalid project references and settings cannot replace the current timeline',()=>{
+  const {api}=editor(),{source}=seed(api);source.kind='video';const project=api.buildProject();
+  project.clips[0].trackId='missing';assert.throws(()=>api.validateProject(project),/引用/);project.clips[0].trackId='v1';
+  project.settings.aspect='javascript:bad';assert.throws(()=>api.validateProject(project),/设置/);assert.equal(api.S.clips.length,1);
+});
+
+test('canvas presets determine output size and preserve portrait and square ratios',()=>{
+  const {api}=editor();api.settings.aspect='portrait';api.settings.size='1280';assert.equal(api.outputSize().h,1280);assert.equal(api.outputSize().w,720);
+  api.settings.aspect='square';assert.equal(api.outputSize().w,api.outputSize().h);
+});
+
+test('playback crosses a split boundary once without seeking back', async () => {
+  const {api,frames,clock} = editor();
+  const media=playbackMedia(81),source={id:'shared',duration:200,el:media};
+  api.S.sources.push(source); api.appendClip(source,10,90); api.appendClip(source,90,200);
+  api.S.time=71;
+  const playback=api.togglePlay();
+  try {
+    await untilFrame(frames);
+    media.advance(90); clock.time+=9000; frames.shift()();
+    await untilFrame(frames);
+    assert.equal(api.S.time,80);
+    for(let n=0;n<20 && media.playStarts.length<2;n++)await Promise.resolve();
+    assert.deepEqual(media.playStarts,[81,90]);
+    media.advance(91); clock.time+=1000; frames.shift()();
+    assert.equal(api.S.time,81);
+  } finally { await pausePlayback(api,frames,playback); }
+});
+
+test('inactive media does not change current playback or start early', async () => {
+  const {api,frames} = editor();
+  const first=playbackMedia(60),next=playbackMedia(0);
+  const sourceA={id:'a',duration:100,el:first},sourceB={id:'b',duration:100,el:next};
+  api.S.sources.push(sourceA,sourceB); api.appendClip(sourceA,0,100); api.appendClip(sourceB,20,80);
+  api.S.time=60;
+  const playback=api.togglePlay();
+  try {
+    await untilFrame(frames);
+    assert.equal(api.S.time,60); assert.equal(first.currentTime,60); assert.equal(next.currentTime,0);assert.deepEqual(next.playStarts,[]);
+  } finally { await pausePlayback(api,frames,playback); }
+});

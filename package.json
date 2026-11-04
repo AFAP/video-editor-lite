@@ -1,0 +1,16 @@
+{
+  "name": "video-editor-lite",
+  "version": "5.0.0",
+  "private": true,
+  "description": "轻量本地视频编辑器，支持多轨剪辑、AI 字幕与配音。",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "type": "module",
+  "scripts": {
+    "start": "node ffmpeg-bridge.mjs",
+    "test": "node --test test/editor.test.mjs test/speech.test.mjs",
+    "test:bridge": "node --test test/bridge.test.mjs",
+    "test:speech": "node --test test/speech-bridge.test.mjs",
+    "test:transitions": "node --test test/transitions.test.mjs"
+  }
+}

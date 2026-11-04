@@ -1,0 +1,533 @@
+{
+  "tool": "built-in image_gen",
+  "groups": [
+    {
+      "id": "reactions",
+      "name": "表情互动",
+      "items": [
+        [
+          "wink",
+          "眨眼",
+          "a playful winking face"
+        ],
+        [
+          "tears",
+          "感动落泪",
+          "a crying face with two large blue tears"
+        ],
+        [
+          "angry",
+          "生气",
+          "an angry face with little steam puffs"
+        ],
+        [
+          "cool",
+          "酷酷墨镜",
+          "a cool smiling face wearing sunglasses"
+        ],
+        [
+          "sleepy",
+          "困困",
+          "a sleeping face resting against a little crescent moon, no letters"
+        ],
+        [
+          "blush",
+          "害羞",
+          "a shy blushing face with hands on cheeks"
+        ],
+        [
+          "thinking",
+          "认真思考",
+          "a thinking face with hand under chin"
+        ],
+        [
+          "love-eyes",
+          "心动",
+          "a face with heart-shaped eyes"
+        ],
+        [
+          "sick",
+          "不舒服",
+          "a face with a thermometer"
+        ],
+        [
+          "sweat",
+          "紧张",
+          "a nervous face with one large sweat drop"
+        ],
+        [
+          "dizzy",
+          "晕乎乎",
+          "a dizzy face with spiral eyes"
+        ],
+        [
+          "melting",
+          "融化了",
+          "a melting round smiley face"
+        ],
+        [
+          "party-face",
+          "开心庆祝",
+          "a delighted face wearing a party hat"
+        ],
+        [
+          "shush",
+          "嘘",
+          "a face making a shushing gesture"
+        ],
+        [
+          "handshake",
+          "握手",
+          "two cartoon hands shaking"
+        ],
+        [
+          "fist-bump",
+          "碰拳",
+          "two cartoon fists bumping"
+        ]
+      ],
+      "prompt": "Use case: stylized-concept. Asset: one transparent PNG sticker sprite sheet for a video editor, theme 表情互动. Create EXACTLY 16 distinct isolated stickers in a precise 4 columns x 4 rows grid on a square transparent canvas, ideally 2048x2048. The entire sheet has exactly 16 equally sized invisible cells. Center each complete sticker in its own cell with at least 15% clean empty transparent margin on all four sides. No element may cross its cell boundaries. Consistent premium playful rounded puffy 3D clay illustration, glossy gentle highlights, bold clean white die-cut silhouette borders, vivid coral/lavender/mint/golden-yellow/blue palette, recognizable at small size. No shared decorations or scene-wide shadows. Each row left to right: Row 1: a playful winking face; a crying face with two large blue tears; an angry face with little steam puffs; a cool smiling face wearing sunglasses. Row 2: a sleeping face resting against a little crescent moon, no letters; a shy blushing face with hands on cheeks; a thinking face with hand under chin; a face with heart-shaped eyes. Row 3: a face with a thermometer; a nervous face with one large sweat drop; a dizzy face with spiral eyes; a melting round smiley face. Row 4: a delighted face wearing a party hat; a face making a shushing gesture; two cartoon hands shaking; two cartoon fists bumping. Genuine alpha transparency in every empty area, no background color, no checkerboard baked in, no dust, no grunge or white speckles. No text, letters, numerals, labels, brand names or watermark. Every listed subject appears once; do not replace any cell with a duplicate.",
+      "source": "sources/reactions-source.png"
+    },
+    {
+      "id": "food",
+      "name": "美食饮品",
+      "items": [
+        [
+          "burger",
+          "汉堡",
+          "a stacked cheeseburger"
+        ],
+        [
+          "pizza",
+          "披萨",
+          "a slice of cheese pizza"
+        ],
+        [
+          "fries",
+          "薯条",
+          "french fries in an unbranded red carton"
+        ],
+        [
+          "ramen",
+          "拉面",
+          "a bowl of ramen with chopsticks"
+        ],
+        [
+          "sushi",
+          "寿司",
+          "two sushi rolls"
+        ],
+        [
+          "strawberry",
+          "草莓",
+          "a ripe strawberry"
+        ],
+        [
+          "watermelon",
+          "西瓜",
+          "a triangular watermelon slice"
+        ],
+        [
+          "avocado",
+          "牛油果",
+          "half an avocado with its seed"
+        ],
+        [
+          "donut",
+          "甜甜圈",
+          "a pink frosted donut"
+        ],
+        [
+          "cupcake",
+          "纸杯蛋糕",
+          "a cupcake with lavender frosting"
+        ],
+        [
+          "croissant",
+          "可颂",
+          "a golden croissant"
+        ],
+        [
+          "icecream",
+          "冰淇淋",
+          "a mint and pink ice cream cone"
+        ],
+        [
+          "pancakes",
+          "松饼",
+          "a stack of pancakes with syrup and butter"
+        ],
+        [
+          "teapot",
+          "茶壶",
+          "a mint ceramic teapot"
+        ],
+        [
+          "boba",
+          "珍珠奶茶",
+          "a bubble tea cup with tapioca pearls"
+        ],
+        [
+          "breakfast",
+          "煎蛋吐司",
+          "toast with a sunny side up egg"
+        ]
+      ],
+      "prompt": "Use case: stylized-concept. Asset: one transparent PNG sticker sprite sheet for a video editor, theme 美食饮品. Create EXACTLY 16 distinct isolated stickers in a precise 4 columns x 4 rows grid on a square transparent canvas, ideally 2048x2048. The entire sheet has exactly 16 equally sized invisible cells. Center each complete sticker in its own cell with at least 15% clean empty transparent margin on all four sides. No element may cross its cell boundaries. Consistent premium playful rounded puffy 3D clay illustration, glossy gentle highlights, bold clean white die-cut silhouette borders, vivid coral/lavender/mint/golden-yellow/blue palette, recognizable at small size. No shared decorations or scene-wide shadows. Each row left to right: Row 1: a stacked cheeseburger; a slice of cheese pizza; french fries in an unbranded red carton; a bowl of ramen with chopsticks. Row 2: two sushi rolls; a ripe strawberry; a triangular watermelon slice; half an avocado with its seed. Row 3: a pink frosted donut; a cupcake with lavender frosting; a golden croissant; a mint and pink ice cream cone. Row 4: a stack of pancakes with syrup and butter; a mint ceramic teapot; a bubble tea cup with tapioca pearls; toast with a sunny side up egg. Genuine alpha transparency in every empty area, no background color, no checkerboard baked in, no dust, no grunge or white speckles. No text, letters, numerals, labels, brand names or watermark. Every listed subject appears once; do not replace any cell with a duplicate.",
+      "source": "sources/food-source.png"
+    },
+    {
+      "id": "travel",
+      "name": "旅行出行",
+      "items": [
+        [
+          "airplane",
+          "飞机",
+          "a toy-like passenger airplane"
+        ],
+        [
+          "suitcase",
+          "行李箱",
+          "a lavender rolling suitcase"
+        ],
+        [
+          "passport",
+          "护照",
+          "a closed passport with a simple globe symbol, no words"
+        ],
+        [
+          "train",
+          "列车",
+          "a cute blue passenger train"
+        ],
+        [
+          "car",
+          "小汽车",
+          "a coral red compact car"
+        ],
+        [
+          "camper",
+          "露营车",
+          "a mint camper van"
+        ],
+        [
+          "sailboat",
+          "帆船",
+          "a small sailboat"
+        ],
+        [
+          "bicycle",
+          "自行车",
+          "a yellow bicycle"
+        ],
+        [
+          "tent",
+          "帐篷",
+          "a camping tent"
+        ],
+        [
+          "compass",
+          "指南针",
+          "a brass compass, no letters"
+        ],
+        [
+          "map",
+          "地图定位",
+          "a folded map with a red location pin, no words"
+        ],
+        [
+          "cablecar",
+          "缆车",
+          "a mountain cable car cabin"
+        ],
+        [
+          "umbrella",
+          "海滩假日",
+          "a striped beach umbrella with a small sand mound"
+        ],
+        [
+          "lighthouse",
+          "灯塔",
+          "a red and white lighthouse"
+        ],
+        [
+          "binoculars",
+          "望远镜",
+          "a pair of binoculars"
+        ],
+        [
+          "balloon",
+          "热气球",
+          "a colorful hot air balloon"
+        ]
+      ],
+      "prompt": "Use case: stylized-concept. Asset: one transparent PNG sticker sprite sheet for a video editor, theme 旅行出行. Create EXACTLY 16 distinct isolated stickers in a precise 4 columns x 4 rows grid on a square transparent canvas, ideally 2048x2048. The entire sheet has exactly 16 equally sized invisible cells. Center each complete sticker in its own cell with at least 15% clean empty transparent margin on all four sides. No element may cross its cell boundaries. Consistent premium playful rounded puffy 3D clay illustration, glossy gentle highlights, bold clean white die-cut silhouette borders, vivid coral/lavender/mint/golden-yellow/blue palette, recognizable at small size. No shared decorations or scene-wide shadows. Each row left to right: Row 1: a toy-like passenger airplane; a lavender rolling suitcase; a closed passport with a simple globe symbol, no words; a cute blue passenger train. Row 2: a coral red compact car; a mint camper van; a small sailboat; a yellow bicycle. Row 3: a camping tent; a brass compass, no letters; a folded map with a red location pin, no words; a mountain cable car cabin. Row 4: a striped beach umbrella with a small sand mound; a red and white lighthouse; a pair of binoculars; a colorful hot air balloon. Genuine alpha transparency in every empty area, no background color, no checkerboard baked in, no dust, no grunge or white speckles. No text, letters, numerals, labels, brand names or watermark. Every listed subject appears once; do not replace any cell with a duplicate.",
+      "source": "sources/travel-source.png"
+    },
+    {
+      "id": "nature",
+      "name": "自然天气",
+      "items": [
+        [
+          "sun",
+          "太阳",
+          "a cheerful golden sun"
+        ],
+        [
+          "moon",
+          "月亮",
+          "a lavender crescent moon"
+        ],
+        [
+          "rainbow",
+          "彩虹",
+          "a pastel rainbow with little clouds at both ends"
+        ],
+        [
+          "cloud",
+          "云朵",
+          "a fluffy white cloud"
+        ],
+        [
+          "raindrop",
+          "雨滴",
+          "a glossy blue raindrop"
+        ],
+        [
+          "snowflake",
+          "雪花",
+          "an icy blue snowflake"
+        ],
+        [
+          "sprout",
+          "新芽",
+          "a green seedling in a little mound of earth"
+        ],
+        [
+          "cactus",
+          "仙人掌",
+          "a cactus in a peach flowerpot"
+        ],
+        [
+          "sunflower",
+          "向日葵",
+          "a sunflower"
+        ],
+        [
+          "tulip",
+          "郁金香",
+          "a pink tulip with leaves"
+        ],
+        [
+          "leaf",
+          "秋叶",
+          "a red-orange maple leaf"
+        ],
+        [
+          "butterfly",
+          "蝴蝶",
+          "a lavender butterfly"
+        ],
+        [
+          "bee",
+          "小蜜蜂",
+          "a smiling yellow bee"
+        ],
+        [
+          "mushroom",
+          "蘑菇",
+          "a red spotted mushroom"
+        ],
+        [
+          "planet",
+          "小星球",
+          "a pastel ringed planet"
+        ],
+        [
+          "shooting-star",
+          "流星",
+          "a golden shooting star with a colorful tail"
+        ]
+      ],
+      "prompt": "Use case: stylized-concept. Asset: one transparent PNG sticker sprite sheet for a video editor, theme 自然天气. Create EXACTLY 16 distinct isolated stickers in a precise 4 columns x 4 rows grid on a square transparent canvas, ideally 2048x2048. The entire sheet has exactly 16 equally sized invisible cells. Center each complete sticker in its own cell with at least 15% clean empty transparent margin on all four sides. No element may cross its cell boundaries. Consistent premium playful rounded puffy 3D clay illustration, glossy gentle highlights, bold clean white die-cut silhouette borders, vivid coral/lavender/mint/golden-yellow/blue palette, recognizable at small size. No shared decorations or scene-wide shadows. Each row left to right: Row 1: a cheerful golden sun; a lavender crescent moon; a pastel rainbow with little clouds at both ends; a fluffy white cloud. Row 2: a glossy blue raindrop; an icy blue snowflake; a green seedling in a little mound of earth; a cactus in a peach flowerpot. Row 3: a sunflower; a pink tulip with leaves; a red-orange maple leaf; a lavender butterfly. Row 4: a smiling yellow bee; a red spotted mushroom; a pastel ringed planet; a golden shooting star with a colorful tail. Genuine alpha transparency in every empty area, no background color, no checkerboard baked in, no dust, no grunge or white speckles. No text, letters, numerals, labels, brand names or watermark. Every listed subject appears once; do not replace any cell with a duplicate.",
+      "source": "sources/nature-source.png"
+    },
+    {
+      "id": "work",
+      "name": "工作学习",
+      "items": [
+        [
+          "laptop",
+          "笔记本电脑",
+          "an open laptop with an abstract pastel screen, no text"
+        ],
+        [
+          "phone",
+          "手机",
+          "a smartphone with a simple heart on its screen"
+        ],
+        [
+          "headphones",
+          "耳机",
+          "lavender headphones"
+        ],
+        [
+          "microphone",
+          "麦克风",
+          "a studio microphone"
+        ],
+        [
+          "book",
+          "阅读",
+          "an open book with blank pages"
+        ],
+        [
+          "pencil",
+          "铅笔",
+          "a yellow pencil"
+        ],
+        [
+          "palette",
+          "调色盘",
+          "an artist palette with a paintbrush"
+        ],
+        [
+          "notebook",
+          "笔记本",
+          "a spiral notebook with blank cover"
+        ],
+        [
+          "clock",
+          "闹钟",
+          "a rounded alarm clock, simple dots instead of numerals"
+        ],
+        [
+          "calendar",
+          "日历",
+          "a desk calendar with a single heart symbol, no numerals"
+        ],
+        [
+          "bulb",
+          "灵感灯泡",
+          "a glowing light bulb"
+        ],
+        [
+          "puzzle",
+          "拼图",
+          "a mint jigsaw puzzle piece"
+        ],
+        [
+          "magnifier",
+          "放大镜",
+          "a magnifying glass"
+        ],
+        [
+          "scissors",
+          "剪刀",
+          "a pair of coral handled scissors"
+        ],
+        [
+          "ruler",
+          "尺子",
+          "a yellow ruler with tick marks but no numbers"
+        ],
+        [
+          "envelope",
+          "邮件",
+          "a lavender envelope with a heart seal"
+        ]
+      ],
+      "prompt": "Use case: stylized-concept. Asset: one transparent PNG sticker sprite sheet for a video editor, theme 工作学习. Create EXACTLY 16 distinct isolated stickers in a precise 4 columns x 4 rows grid on a square transparent canvas, ideally 2048x2048. The entire sheet has exactly 16 equally sized invisible cells. Center each complete sticker in its own cell with at least 15% clean empty transparent margin on all four sides. No element may cross its cell boundaries. Consistent premium playful rounded puffy 3D clay illustration, glossy gentle highlights, bold clean white die-cut silhouette borders, vivid coral/lavender/mint/golden-yellow/blue palette, recognizable at small size. No shared decorations or scene-wide shadows. Each row left to right: Row 1: an open laptop with an abstract pastel screen, no text; a smartphone with a simple heart on its screen; lavender headphones; a studio microphone. Row 2: an open book with blank pages; a yellow pencil; an artist palette with a paintbrush; a spiral notebook with blank cover. Row 3: a rounded alarm clock, simple dots instead of numerals; a desk calendar with a single heart symbol, no numerals; a glowing light bulb; a mint jigsaw puzzle piece. Row 4: a magnifying glass; a pair of coral handled scissors; a yellow ruler with tick marks but no numbers; a lavender envelope with a heart seal. Genuine alpha transparency in every empty area, no background color, no checkerboard baked in, no dust, no grunge or white speckles. No text, letters, numerals, labels, brand names or watermark. Every listed subject appears once; do not replace any cell with a duplicate.",
+      "source": "sources/work-source.png"
+    },
+    {
+      "id": "celebrate",
+      "name": "庆祝创作",
+      "items": [
+        [
+          "cake",
+          "生日蛋糕",
+          "a birthday cake with three candles"
+        ],
+        [
+          "gift",
+          "礼物",
+          "a wrapped gift box with a large ribbon"
+        ],
+        [
+          "balloons",
+          "气球",
+          "a bunch of three colorful balloons"
+        ],
+        [
+          "bunting",
+          "彩旗",
+          "a small curved string of colorful triangular bunting"
+        ],
+        [
+          "disco",
+          "迪斯科球",
+          "a glittering mirror disco ball"
+        ],
+        [
+          "hat",
+          "派对帽",
+          "a striped party hat"
+        ],
+        [
+          "fireworks",
+          "烟花",
+          "a colorful firework burst"
+        ],
+        [
+          "crown",
+          "皇冠",
+          "a golden paper crown with little colored gems"
+        ],
+        [
+          "medal",
+          "奖牌",
+          "a gold medal on a blue ribbon"
+        ],
+        [
+          "finish",
+          "终点旗",
+          "a waving black and white checkered flag"
+        ],
+        [
+          "clapper",
+          "场记板",
+          "a movie clapperboard with blank body, no text"
+        ],
+        [
+          "curtains",
+          "舞台幕布",
+          "a small red theater curtain opening onto a gold star"
+        ],
+        [
+          "cheers",
+          "干杯",
+          "two clinking goblets filled with orange juice"
+        ],
+        [
+          "heart-frame",
+          "爱心相框",
+          "a pastel heart-shaped empty picture frame"
+        ],
+        [
+          "music",
+          "音乐",
+          "a pair of colorful musical notes"
+        ],
+        [
+          "megaphone",
+          "喇叭",
+          "a coral and mint megaphone"
+        ]
+      ],
+      "prompt": "Use case: stylized-concept. Asset: one transparent PNG sticker sprite sheet for a video editor, theme 庆祝创作. Create EXACTLY 16 distinct isolated stickers in a precise 4 columns x 4 rows grid on a square transparent canvas, ideally 2048x2048. The entire sheet has exactly 16 equally sized invisible cells. Center each complete sticker in its own cell with at least 15% clean empty transparent margin on all four sides. No element may cross its cell boundaries. Consistent premium playful rounded puffy 3D clay illustration, glossy gentle highlights, bold clean white die-cut silhouette borders, vivid coral/lavender/mint/golden-yellow/blue palette, recognizable at small size. No shared decorations or scene-wide shadows. Each row left to right: Row 1: a birthday cake with three candles; a wrapped gift box with a large ribbon; a bunch of three colorful balloons; a small curved string of colorful triangular bunting. Row 2: a glittering mirror disco ball; a striped party hat; a colorful firework burst; a golden paper crown with little colored gems. Row 3: a gold medal on a blue ribbon; a waving black and white checkered flag; a movie clapperboard with blank body, no text; a small red theater curtain opening onto a gold star. Row 4: two clinking goblets filled with orange juice; a pastel heart-shaped empty picture frame; a pair of colorful musical notes; a coral and mint megaphone. Genuine alpha transparency in every empty area, no background color, no checkerboard baked in, no dust, no grunge or white speckles. No text, letters, numerals, labels, brand names or watermark. Every listed subject appears once; do not replace any cell with a duplicate.",
+      "source": "sources/celebrate-source.png"
+    }
+  ]
+}

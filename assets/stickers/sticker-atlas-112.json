@@ -1,0 +1,1138 @@
+{
+  "image": "sticker-atlas-112.png",
+  "size": {
+    "w": 4096,
+    "h": 2048
+  },
+  "categories": {
+    "daily": "日常灵感",
+    "reactions": "表情互动",
+    "food": "美食饮品",
+    "travel": "旅行出行",
+    "nature": "自然天气",
+    "work": "工作学习",
+    "celebrate": "庆祝创作"
+  },
+  "frames": [
+    {
+      "id": "like",
+      "name": "点赞",
+      "x": 0,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/like.png"
+    },
+    {
+      "id": "heart",
+      "name": "爱心",
+      "x": 256,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/heart.png"
+    },
+    {
+      "id": "laugh",
+      "name": "大笑",
+      "x": 512,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/laugh.png"
+    },
+    {
+      "id": "wow",
+      "name": "惊讶",
+      "x": 768,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/wow.png"
+    },
+    {
+      "id": "fire",
+      "name": "火焰",
+      "x": 0,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/fire.png"
+    },
+    {
+      "id": "stars",
+      "name": "星星",
+      "x": 256,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/stars.png"
+    },
+    {
+      "id": "lightning",
+      "name": "闪电",
+      "x": 512,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/lightning.png"
+    },
+    {
+      "id": "trophy",
+      "name": "奖杯",
+      "x": 768,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/trophy.png"
+    },
+    {
+      "id": "arrow-right",
+      "name": "向右箭头",
+      "x": 0,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/arrow-right.png"
+    },
+    {
+      "id": "arrow-left",
+      "name": "向左箭头",
+      "x": 256,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/arrow-left.png"
+    },
+    {
+      "id": "bubble",
+      "name": "对话气泡",
+      "x": 512,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/bubble.png"
+    },
+    {
+      "id": "attention",
+      "name": "重点提醒",
+      "x": 768,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/attention.png"
+    },
+    {
+      "id": "coffee",
+      "name": "咖啡",
+      "x": 0,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/coffee.png"
+    },
+    {
+      "id": "camera",
+      "name": "相机",
+      "x": 256,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/camera.png"
+    },
+    {
+      "id": "party",
+      "name": "庆祝",
+      "x": 512,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/party.png"
+    },
+    {
+      "id": "rocket",
+      "name": "火箭",
+      "x": 768,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "category": "daily",
+      "file": "png/rocket.png"
+    },
+    {
+      "id": "reactions-wink",
+      "name": "眨眼",
+      "category": "reactions",
+      "x": 1024,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-wink.png"
+    },
+    {
+      "id": "reactions-tears",
+      "name": "感动落泪",
+      "category": "reactions",
+      "x": 1280,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-tears.png"
+    },
+    {
+      "id": "reactions-angry",
+      "name": "生气",
+      "category": "reactions",
+      "x": 1536,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-angry.png"
+    },
+    {
+      "id": "reactions-cool",
+      "name": "酷酷墨镜",
+      "category": "reactions",
+      "x": 1792,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-cool.png"
+    },
+    {
+      "id": "reactions-sleepy",
+      "name": "困困",
+      "category": "reactions",
+      "x": 1024,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-sleepy.png"
+    },
+    {
+      "id": "reactions-blush",
+      "name": "害羞",
+      "category": "reactions",
+      "x": 1280,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-blush.png"
+    },
+    {
+      "id": "reactions-thinking",
+      "name": "认真思考",
+      "category": "reactions",
+      "x": 1536,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-thinking.png"
+    },
+    {
+      "id": "reactions-love-eyes",
+      "name": "心动",
+      "category": "reactions",
+      "x": 1792,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-love-eyes.png"
+    },
+    {
+      "id": "reactions-sick",
+      "name": "不舒服",
+      "category": "reactions",
+      "x": 1024,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-sick.png"
+    },
+    {
+      "id": "reactions-sweat",
+      "name": "紧张",
+      "category": "reactions",
+      "x": 1280,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-sweat.png"
+    },
+    {
+      "id": "reactions-dizzy",
+      "name": "晕乎乎",
+      "category": "reactions",
+      "x": 1536,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-dizzy.png"
+    },
+    {
+      "id": "reactions-melting",
+      "name": "融化了",
+      "category": "reactions",
+      "x": 1792,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-melting.png"
+    },
+    {
+      "id": "reactions-party-face",
+      "name": "开心庆祝",
+      "category": "reactions",
+      "x": 1024,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-party-face.png"
+    },
+    {
+      "id": "reactions-shush",
+      "name": "嘘",
+      "category": "reactions",
+      "x": 1280,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-shush.png"
+    },
+    {
+      "id": "reactions-handshake",
+      "name": "握手",
+      "category": "reactions",
+      "x": 1536,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-handshake.png"
+    },
+    {
+      "id": "reactions-fist-bump",
+      "name": "碰拳",
+      "category": "reactions",
+      "x": 1792,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/reactions-fist-bump.png"
+    },
+    {
+      "id": "food-burger",
+      "name": "汉堡",
+      "category": "food",
+      "x": 2048,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-burger.png"
+    },
+    {
+      "id": "food-pizza",
+      "name": "披萨",
+      "category": "food",
+      "x": 2304,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-pizza.png"
+    },
+    {
+      "id": "food-fries",
+      "name": "薯条",
+      "category": "food",
+      "x": 2560,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-fries.png"
+    },
+    {
+      "id": "food-ramen",
+      "name": "拉面",
+      "category": "food",
+      "x": 2816,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-ramen.png"
+    },
+    {
+      "id": "food-sushi",
+      "name": "寿司",
+      "category": "food",
+      "x": 2048,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-sushi.png"
+    },
+    {
+      "id": "food-strawberry",
+      "name": "草莓",
+      "category": "food",
+      "x": 2304,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-strawberry.png"
+    },
+    {
+      "id": "food-watermelon",
+      "name": "西瓜",
+      "category": "food",
+      "x": 2560,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-watermelon.png"
+    },
+    {
+      "id": "food-avocado",
+      "name": "牛油果",
+      "category": "food",
+      "x": 2816,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-avocado.png"
+    },
+    {
+      "id": "food-donut",
+      "name": "甜甜圈",
+      "category": "food",
+      "x": 2048,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-donut.png"
+    },
+    {
+      "id": "food-cupcake",
+      "name": "纸杯蛋糕",
+      "category": "food",
+      "x": 2304,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-cupcake.png"
+    },
+    {
+      "id": "food-croissant",
+      "name": "可颂",
+      "category": "food",
+      "x": 2560,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-croissant.png"
+    },
+    {
+      "id": "food-icecream",
+      "name": "冰淇淋",
+      "category": "food",
+      "x": 2816,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-icecream.png"
+    },
+    {
+      "id": "food-pancakes",
+      "name": "松饼",
+      "category": "food",
+      "x": 2048,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-pancakes.png"
+    },
+    {
+      "id": "food-teapot",
+      "name": "茶壶",
+      "category": "food",
+      "x": 2304,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-teapot.png"
+    },
+    {
+      "id": "food-boba",
+      "name": "珍珠奶茶",
+      "category": "food",
+      "x": 2560,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-boba.png"
+    },
+    {
+      "id": "food-breakfast",
+      "name": "煎蛋吐司",
+      "category": "food",
+      "x": 2816,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/food-breakfast.png"
+    },
+    {
+      "id": "travel-airplane",
+      "name": "飞机",
+      "category": "travel",
+      "x": 3072,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-airplane.png"
+    },
+    {
+      "id": "travel-suitcase",
+      "name": "行李箱",
+      "category": "travel",
+      "x": 3328,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-suitcase.png"
+    },
+    {
+      "id": "travel-passport",
+      "name": "护照",
+      "category": "travel",
+      "x": 3584,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-passport.png"
+    },
+    {
+      "id": "travel-train",
+      "name": "列车",
+      "category": "travel",
+      "x": 3840,
+      "y": 0,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-train.png"
+    },
+    {
+      "id": "travel-car",
+      "name": "小汽车",
+      "category": "travel",
+      "x": 3072,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-car.png"
+    },
+    {
+      "id": "travel-camper",
+      "name": "露营车",
+      "category": "travel",
+      "x": 3328,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-camper.png"
+    },
+    {
+      "id": "travel-sailboat",
+      "name": "帆船",
+      "category": "travel",
+      "x": 3584,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-sailboat.png"
+    },
+    {
+      "id": "travel-bicycle",
+      "name": "自行车",
+      "category": "travel",
+      "x": 3840,
+      "y": 256,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-bicycle.png"
+    },
+    {
+      "id": "travel-tent",
+      "name": "帐篷",
+      "category": "travel",
+      "x": 3072,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-tent.png"
+    },
+    {
+      "id": "travel-compass",
+      "name": "指南针",
+      "category": "travel",
+      "x": 3328,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-compass.png"
+    },
+    {
+      "id": "travel-map",
+      "name": "地图定位",
+      "category": "travel",
+      "x": 3584,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-map.png"
+    },
+    {
+      "id": "travel-cablecar",
+      "name": "缆车",
+      "category": "travel",
+      "x": 3840,
+      "y": 512,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-cablecar.png"
+    },
+    {
+      "id": "travel-umbrella",
+      "name": "海滩假日",
+      "category": "travel",
+      "x": 3072,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-umbrella.png"
+    },
+    {
+      "id": "travel-lighthouse",
+      "name": "灯塔",
+      "category": "travel",
+      "x": 3328,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-lighthouse.png"
+    },
+    {
+      "id": "travel-binoculars",
+      "name": "望远镜",
+      "category": "travel",
+      "x": 3584,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-binoculars.png"
+    },
+    {
+      "id": "travel-balloon",
+      "name": "热气球",
+      "category": "travel",
+      "x": 3840,
+      "y": 768,
+      "w": 256,
+      "h": 256,
+      "file": "png/travel-balloon.png"
+    },
+    {
+      "id": "nature-sun",
+      "name": "太阳",
+      "category": "nature",
+      "x": 0,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-sun.png"
+    },
+    {
+      "id": "nature-moon",
+      "name": "月亮",
+      "category": "nature",
+      "x": 256,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-moon.png"
+    },
+    {
+      "id": "nature-rainbow",
+      "name": "彩虹",
+      "category": "nature",
+      "x": 512,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-rainbow.png"
+    },
+    {
+      "id": "nature-cloud",
+      "name": "云朵",
+      "category": "nature",
+      "x": 768,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-cloud.png"
+    },
+    {
+      "id": "nature-raindrop",
+      "name": "雨滴",
+      "category": "nature",
+      "x": 0,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-raindrop.png"
+    },
+    {
+      "id": "nature-snowflake",
+      "name": "雪花",
+      "category": "nature",
+      "x": 256,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-snowflake.png"
+    },
+    {
+      "id": "nature-sprout",
+      "name": "新芽",
+      "category": "nature",
+      "x": 512,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-sprout.png"
+    },
+    {
+      "id": "nature-cactus",
+      "name": "仙人掌",
+      "category": "nature",
+      "x": 768,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-cactus.png"
+    },
+    {
+      "id": "nature-sunflower",
+      "name": "向日葵",
+      "category": "nature",
+      "x": 0,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-sunflower.png"
+    },
+    {
+      "id": "nature-tulip",
+      "name": "郁金香",
+      "category": "nature",
+      "x": 256,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-tulip.png"
+    },
+    {
+      "id": "nature-leaf",
+      "name": "秋叶",
+      "category": "nature",
+      "x": 512,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-leaf.png"
+    },
+    {
+      "id": "nature-butterfly",
+      "name": "蝴蝶",
+      "category": "nature",
+      "x": 768,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-butterfly.png"
+    },
+    {
+      "id": "nature-bee",
+      "name": "小蜜蜂",
+      "category": "nature",
+      "x": 0,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-bee.png"
+    },
+    {
+      "id": "nature-mushroom",
+      "name": "蘑菇",
+      "category": "nature",
+      "x": 256,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-mushroom.png"
+    },
+    {
+      "id": "nature-planet",
+      "name": "小星球",
+      "category": "nature",
+      "x": 512,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-planet.png"
+    },
+    {
+      "id": "nature-shooting-star",
+      "name": "流星",
+      "category": "nature",
+      "x": 768,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/nature-shooting-star.png"
+    },
+    {
+      "id": "work-laptop",
+      "name": "笔记本电脑",
+      "category": "work",
+      "x": 1024,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-laptop.png"
+    },
+    {
+      "id": "work-phone",
+      "name": "手机",
+      "category": "work",
+      "x": 1280,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-phone.png"
+    },
+    {
+      "id": "work-headphones",
+      "name": "耳机",
+      "category": "work",
+      "x": 1536,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-headphones.png"
+    },
+    {
+      "id": "work-microphone",
+      "name": "麦克风",
+      "category": "work",
+      "x": 1792,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-microphone.png"
+    },
+    {
+      "id": "work-book",
+      "name": "阅读",
+      "category": "work",
+      "x": 1024,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-book.png"
+    },
+    {
+      "id": "work-pencil",
+      "name": "铅笔",
+      "category": "work",
+      "x": 1280,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-pencil.png"
+    },
+    {
+      "id": "work-palette",
+      "name": "调色盘",
+      "category": "work",
+      "x": 1536,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-palette.png"
+    },
+    {
+      "id": "work-notebook",
+      "name": "笔记本",
+      "category": "work",
+      "x": 1792,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-notebook.png"
+    },
+    {
+      "id": "work-clock",
+      "name": "闹钟",
+      "category": "work",
+      "x": 1024,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-clock.png"
+    },
+    {
+      "id": "work-calendar",
+      "name": "日历",
+      "category": "work",
+      "x": 1280,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-calendar.png"
+    },
+    {
+      "id": "work-bulb",
+      "name": "灵感灯泡",
+      "category": "work",
+      "x": 1536,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-bulb.png"
+    },
+    {
+      "id": "work-puzzle",
+      "name": "拼图",
+      "category": "work",
+      "x": 1792,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-puzzle.png"
+    },
+    {
+      "id": "work-magnifier",
+      "name": "放大镜",
+      "category": "work",
+      "x": 1024,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-magnifier.png"
+    },
+    {
+      "id": "work-scissors",
+      "name": "剪刀",
+      "category": "work",
+      "x": 1280,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-scissors.png"
+    },
+    {
+      "id": "work-ruler",
+      "name": "尺子",
+      "category": "work",
+      "x": 1536,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-ruler.png"
+    },
+    {
+      "id": "work-envelope",
+      "name": "邮件",
+      "category": "work",
+      "x": 1792,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/work-envelope.png"
+    },
+    {
+      "id": "celebrate-cake",
+      "name": "生日蛋糕",
+      "category": "celebrate",
+      "x": 2048,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-cake.png"
+    },
+    {
+      "id": "celebrate-gift",
+      "name": "礼物",
+      "category": "celebrate",
+      "x": 2304,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-gift.png"
+    },
+    {
+      "id": "celebrate-balloons",
+      "name": "气球",
+      "category": "celebrate",
+      "x": 2560,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-balloons.png"
+    },
+    {
+      "id": "celebrate-bunting",
+      "name": "彩旗",
+      "category": "celebrate",
+      "x": 2816,
+      "y": 1024,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-bunting.png"
+    },
+    {
+      "id": "celebrate-disco",
+      "name": "迪斯科球",
+      "category": "celebrate",
+      "x": 2048,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-disco.png"
+    },
+    {
+      "id": "celebrate-hat",
+      "name": "派对帽",
+      "category": "celebrate",
+      "x": 2304,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-hat.png"
+    },
+    {
+      "id": "celebrate-fireworks",
+      "name": "烟花",
+      "category": "celebrate",
+      "x": 2560,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-fireworks.png"
+    },
+    {
+      "id": "celebrate-crown",
+      "name": "皇冠",
+      "category": "celebrate",
+      "x": 2816,
+      "y": 1280,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-crown.png"
+    },
+    {
+      "id": "celebrate-medal",
+      "name": "奖牌",
+      "category": "celebrate",
+      "x": 2048,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-medal.png"
+    },
+    {
+      "id": "celebrate-finish",
+      "name": "终点旗",
+      "category": "celebrate",
+      "x": 2304,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-finish.png"
+    },
+    {
+      "id": "celebrate-clapper",
+      "name": "场记板",
+      "category": "celebrate",
+      "x": 2560,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-clapper.png"
+    },
+    {
+      "id": "celebrate-curtains",
+      "name": "舞台幕布",
+      "category": "celebrate",
+      "x": 2816,
+      "y": 1536,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-curtains.png"
+    },
+    {
+      "id": "celebrate-cheers",
+      "name": "干杯",
+      "category": "celebrate",
+      "x": 2048,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-cheers.png"
+    },
+    {
+      "id": "celebrate-heart-frame",
+      "name": "爱心相框",
+      "category": "celebrate",
+      "x": 2304,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-heart-frame.png"
+    },
+    {
+      "id": "celebrate-music",
+      "name": "音乐",
+      "category": "celebrate",
+      "x": 2560,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-music.png"
+    },
+    {
+      "id": "celebrate-megaphone",
+      "name": "喇叭",
+      "category": "celebrate",
+      "x": 2816,
+      "y": 1792,
+      "w": 256,
+      "h": 256,
+      "file": "png/celebrate-megaphone.png"
+    }
+  ]
+}
