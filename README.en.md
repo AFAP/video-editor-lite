@@ -25,9 +25,10 @@ Open [http://127.0.0.1:8787/](http://127.0.0.1:8787/) to export through the loca
 
 ## 2. Features
 
-- **Multitrack editing:** Import video, images, and audio; freely add visual, audio, and text tracks.
-- **Everyday tools:** Split, trim, duplicate, snap, adjust volume and fades, undo, and redo.
-- **Visual controls:** Scale, position, opacity, canvas presets, and timeline transitions with previews.
+- **Multitrack editing:** Import video, images, and audio; start with one visual track and add tracks as needed.
+- **Everyday tools:** Multiselect, group, trim, split, ripple delete, undo, and redo.
+- **Audio tools:** Real waveforms, audio separation, volume, and fades.
+- **Visuals and animation:** Canvas presets, keyframe animation, and timeline transitions with previews.
 - **Text and stickers:** 30 editable text styles and 112 built-in transparent stickers.
 - **Captions and speech:** SRT import/export, Bailian speech recognition, automatic captions, TTS, and text editing.
 - **Project saving:** Save projects, recover drafts, and relink original media when reopening.
@@ -50,6 +51,6 @@ Transparent stickers:
 
 ## 4. More information
 
-[Usage guide (Chinese)](docs/usage.md) · [Sticker assets (Chinese)](assets/stickers/README.md) · [Privacy and security](SECURITY.md)
+[Usage guide (Chinese)](docs/usage.md) · [Editing guide (Chinese)](docs/editing.md) · [Sticker assets (Chinese)](assets/stickers/README.md) · [Privacy and security](SECURITY.md)
 
 [MIT](LICENSE) © 2026 AFAP and contributors
