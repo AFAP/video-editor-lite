@@ -9,6 +9,7 @@
 # Generated packages and development output
 dist/
 build/
+_site/
 *.exe
 *.spec.bak
 *.log
