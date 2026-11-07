@@ -44,6 +44,10 @@ test('real FFmpeg: legacy concat, multitrack composition, audio-only and text-on
     run(ffmpeg,['-v','error','-y','-f','lavfi','-i','color=c=0x294c3a:s=320x180','-frames:v','1',join(temp,'background.png')]);
     run(ffmpeg,['-v','error','-y','-f','lavfi','-i','color=c=white:s=320x180','-vf','format=rgba','-frames:v','1',join(temp,'overlay.png')]);
     const video = await post('/upload?name=sample.mp4',await readFile(join(temp,'source.mp4')));
+    const waveform = await (await fetch(base+'/waveform/'+video.id)).json();
+    assert.ok(waveform.ok);assert.equal(waveform.peaks.length,4096);assert.ok(waveform.peaks.some(value=>value>.01));
+    const invalidAnimation = await fetch(base+'/render',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({timeline:true,clips:[{id:video.id,in:0,out:1,keyframes:{scale:[{time:0,value:'unsafe'}]}}]})});
+    assert.equal(invalidAnimation.status,400);assert.match((await invalidAnimation.json()).error,/关键帧/);
     const image = await post('/overlay',await readFile(join(temp,'background.png')),{'content-type':'image/png'});
     const overlay = await post('/overlay',await readFile(join(temp,'overlay.png')),{'content-type':'image/png'});
     assert.ok(video.hasAudio); assert.equal(video.width,320);

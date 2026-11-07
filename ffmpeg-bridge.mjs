@@ -22,6 +22,8 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { renderTimeline } from './timeline-render.mjs';
 import { createSpeechService } from './speech-service.mjs';
+import { normalizeKeyframes } from './animation.mjs';
+import { extractWaveform } from './waveform.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = '127.0.0.1';
@@ -433,6 +435,14 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { ok: true, ...record });
     }
 
+    const waveformMatch = /^\/waveform\/([a-f0-9]+)$/.exec(url.pathname);
+    if (waveformMatch && req.method === 'GET') {
+      const source = uploads.get(waveformMatch[1]);
+      if (!source) return json(res, 404, {ok:false,error:'找不到波形素材'});
+      if (!source.waveformPromise) source.waveformPromise = extractWaveform(BIN.ffmpeg,source).catch(error=>{delete source.waveformPromise;throw error;});
+      return json(res,200,{ok:true,...await source.waveformPromise});
+    }
+
     if (url.pathname === '/overlay' && req.method === 'POST') {
       const id = randomUUID().slice(0, 8);
       const target = join(IN_DIR, `ov-${id}.png`);
@@ -466,6 +476,9 @@ const server = createServer(async (req, res) => {
           ? Math.max(inPoint + 0.1, Number(clip.out) || inPoint + 5)
           : Math.min(Number(clip.out) || source.duration, source.duration || Number(clip.out) || 0);
         if (!(outPoint > inPoint)) return json(res, 400, { ok: false, error: '片段区间无效' });
+        let keyframes;
+        try { keyframes = normalizeKeyframes(clip.keyframes); }
+        catch (error) { return json(res,400,{ok:false,error:error.message}); }
         prepared.push({
           kind: isImage ? 'image' : clip.kind === 'audio' ? 'audio' : 'video',
           start: Math.max(0, Number(clip.start) || 0),
@@ -473,6 +486,8 @@ const server = createServer(async (req, res) => {
           opacity: clip.opacity === undefined ? 1 : Math.min(1, Math.max(0, Number(clip.opacity) || 0)),
           transitionIn: clip.transitionIn,
           transitionOut: clip.transitionOut,
+          keyframes,
+          animationOffset: inPoint,
           path: source.path,
           in: isImage ? 0 : inPoint,
           out: isImage ? outPoint - inPoint : outPoint,

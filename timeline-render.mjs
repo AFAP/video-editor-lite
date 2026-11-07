@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { keyframeExpression } from './animation.mjs';
 
 const bounded = (value,min,max,fallback=0) => Number.isFinite(Number(value)) ? Math.min(max,Math.max(min,Number(value))) : fallback;
 const decimal = value => Number(value).toFixed(4);
@@ -23,7 +24,10 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
   const visual=job.clips.map((clip,index)=>({clip,index})).filter(({clip})=>clip.kind!=='audio').sort((a,b)=>a.clip.layer-b.clip.layer||a.clip.start-b.clip.start);
   for(const {clip,index} of visual){
     const duration=clip.out-clip.in,scale=bounded(clip.scale,.1,3,1),opacity=bounded(clip.opacity,0,1,1);
-    const x=Math.round(bounded(clip.ox,-.5,.5)*W),y=Math.round(bounded(clip.oy,-.5,.5)*H);
+    const scaleExpr=keyframeExpression(clip,'scale','t',scale);
+    const opacityExpr=keyframeExpression(clip,'opacity','T',opacity);
+    const x=`${W}*(${keyframeExpression(clip,'ox',`t-${decimal(clip.start)}`,bounded(clip.ox,-.5,.5))})`;
+    const y=`${H}*(${keyframeExpression(clip,'oy',`t-${decimal(clip.start)}`,bounded(clip.oy,-.5,.5))})`;
     const enter=transition(clip.transitionIn,duration),leave=transition(clip.transitionOut,duration),effects=[];
     const p=`clip(T/${decimal(enter.duration)},0,1)`,q=`clip((T-${decimal(duration-leave.duration)})/${decimal(leave.duration)},0,1)`;
     if(enter.type==='fade')effects.push(`fade=t=in:st=0:d=${decimal(enter.duration)}:alpha=1`);
@@ -31,16 +35,16 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
     const masks=[];
     if(enter.type==='wipeleft')masks.push(`lte(X/W,${p})`);if(enter.type==='wiperight')masks.push(`gte(X/W,1-${p})`);
     if(leave.type==='wipeleft')masks.push(`gte(X/W,${q})`);if(leave.type==='wiperight')masks.push(`lte(X/W,1-${q})`);
-    if(masks.length)effects.push(`geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*${masks.join('*')}'`);
+    if(masks.length||clip.keyframes?.opacity?.length)effects.push(`geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(${clip.keyframes?.opacity?.length?opacityExpr:'1'})${masks.length?'*'+masks.join('*'):''}'`);
     const progress=`clip((t-${decimal(clip.start)})/${decimal(enter.duration)},0,1)`,outProgress=`clip((t-${decimal(clip.start+duration-leave.duration)})/${decimal(leave.duration)},0,1)`;
     let move='';if(enter.type==='slideleft')move+=`+W*(1-${progress})`;if(enter.type==='slideright')move+=`-W*(1-${progress})`;
     if(leave.type==='slideleft')move+=`-W*${outProgress}`;if(leave.type==='slideright')move+=`+W*${outProgress}`;
     filters.push(`[${index}:v]trim=duration=${decimal(duration)},setpts=PTS-STARTPTS,`+
       `scale=${W}:${H}:force_original_aspect_ratio=decrease,`+
-      `scale=w='max(2,trunc(iw*${decimal(scale)}/2)*2)':h='max(2,trunc(ih*${decimal(scale)}/2)*2)',`+
-      `setsar=1,fps=${job.fps},format=rgba,colorchannelmixer=aa=${decimal(opacity)},${effects.length?effects.join(',')+',':''}setpts=PTS+${decimal(clip.start)}/TB[layer${index}]`);
+      `scale=w='max(2,trunc(iw*(${scaleExpr})/2)*2)':h='max(2,trunc(ih*(${scaleExpr})/2)*2)':eval=frame,`+
+      `setsar=1,fps=${job.fps},format=rgba,colorchannelmixer=aa=${clip.keyframes?.opacity?.length?1:decimal(opacity)},${effects.length?effects.join(',')+',':''}setpts=PTS+${decimal(clip.start)}/TB[layer${index}]`);
     const next='composite'+index;
-    filters.push(`[${video}][layer${index}]overlay=x='(W-w)/2+${x}${move}':y=(H-h)/2+${y}:`+
+    filters.push(`[${video}][layer${index}]overlay=x='(W-w)/2+${x}${move}':y='(H-h)/2+${y}':`+
       `enable='gte(t,${decimal(clip.start)})*lt(t,${decimal(clip.start+duration)})':eof_action=pass:repeatlast=0[${next}]`);
     video=next;
   }
@@ -55,10 +59,10 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
   const audio=[];
   job.clips.forEach((clip,index)=>{
     const volume=bounded(clip.volume,0,2,1);
-    if(!clip.hasAudio||clip.muted||!volume)return;
+    if(!clip.hasAudio||clip.muted||!volume&&!clip.keyframes?.volume?.length)return;
     const duration=clip.out-clip.in,fi=bounded(clip.fadeIn,0,duration),fo=bounded(clip.fadeOut,0,duration);
     const parts=[`atrim=duration=${decimal(duration)}`,'asetpts=PTS-STARTPTS','aresample=48000',
-      'aformat=sample_fmts=fltp:channel_layouts=stereo',`volume=${decimal(volume)}`];
+      'aformat=sample_fmts=fltp:channel_layouts=stereo',`volume='${keyframeExpression(clip,'volume','t',volume)}':eval=frame`];
     if(fi)parts.push(`afade=t=in:st=0:d=${decimal(fi)}`);
     if(fo)parts.push(`afade=t=out:st=${decimal(duration-fo)}:d=${decimal(fo)}`);
     parts.push(`adelay=${Math.round(clip.start*1000)}:all=1`);

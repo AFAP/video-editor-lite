@@ -11,6 +11,7 @@
     "test": "node --test test/editor.test.mjs test/speech.test.mjs",
     "test:bridge": "node --test test/bridge.test.mjs",
     "test:speech": "node --test test/speech-bridge.test.mjs",
-    "test:transitions": "node --test test/transitions.test.mjs"
+    "test:transitions": "node --test test/transitions.test.mjs",
+    "test:editing": "node --test test/editing-bridge.test.mjs"
   }
 }

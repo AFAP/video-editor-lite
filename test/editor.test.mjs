@@ -36,7 +36,7 @@ class Element {
   showModal() { this.open=true; } close() { this.open=false; }
 }
 
-function editor({storageBlocked = false} = {}) {
+function editor({storageBlocked = false, tracks = []} = {}) {
   const frames = [];
   const clock = {time:0};
   const elements = new Map(ids.map(id => [id, new Element()]));
@@ -69,6 +69,8 @@ function editor({storageBlocked = false} = {}) {
     activeRows, visualRows, totalDuration, addTrack, moveClipTo, mediaForClip, clipVolume, mediaKind,
     parseSrt,serializeSrt,setSpeechDraft,speechState,validateSpeechDraft,applySpeechCaptions,
     buildProject,validateProject,prepareProject,applyProject,projectState,connectPreviousClip,transitionState,
+    setSelection,selectionEntries,groupSelection,detachAudio,rippleDelete,closeTimelineGaps,isLocked,clipKind,
+    animationValue,setAnimationValue,validateAnimation,applyCaptionStyle,openCaptionEditor,
     transitionCuts,transitionItems,insertTransition,removeTransition,selectedTransition,reconcileLinkedTransitions,paintTransitionDemo,
     createFancyText,applyFancyToSelected,applyTextPreset,FANCY_TEXT_PRESETS,FANCY_CATEGORIES,TEXT_PRESETS,createSticker,STICKER_ASSETS,STICKER_CATEGORIES,STICKER_ATLAS_SIZE,drawTextLayer,filterLibraryItems,
     quiet() { renderSources = renderTimeline = renderPanels = drawAt = updateSummary = refreshHistoryUi = () => {};
@@ -79,6 +81,8 @@ function editor({storageBlocked = false} = {}) {
   vm.runInContext(js, context, {timeout:2000});
   const api = context.testApi;
   api.quiet();
+  for(const kind of tracks)api.addTrack(kind);
+  api.S.activeTrack='v1';
   return {api, elements, document, frames, clock};
 }
 
@@ -129,6 +133,114 @@ function seed(api) {
   const clip = api.appendClip(source,1,9);
   return {source,clip};
 }
+
+test('new projects start with one visual track and create audio/text tracks only when used',()=>{
+  const {api}=editor();assert.equal(api.S.tracks.length,1);assert.equal(api.S.tracks[0].id,'v1');
+  api.openCaptionEditor();assert.equal(api.S.tracks.length,1,'opening an empty caption panel must not add a track');
+  seed(api);assert.equal(api.S.tracks.length,1,'importing video uses the existing visual track');
+  const audio={id:'music',kind:'audio',duration:10};api.S.sources.push(audio);api.appendClip(audio,0,4);
+  assert.equal(api.S.tracks.length,2);assert.equal(api.S.clips.at(-1).trackId,'a1');
+  api.appendClip(audio,4,8);assert.equal(api.S.tracks.length,2,'reuse the audio track');
+  api.createFancyText(api.FANCY_TEXT_PRESETS[0].id);
+  assert.equal(api.S.tracks.length,3);assert.equal(api.S.texts[0].trackId,'t1');
+});
+
+test('minimal projects can save and restore while older multitrack projects retain their tracks',async()=>{
+  const minimal=editor().api;const project=minimal.buildProject();assert.doesNotThrow(()=>minimal.validateProject(project));
+  minimal.addTrack('visual');await minimal.prepareProject(project);await minimal.applyProject();assert.equal(minimal.S.tracks.length,1);
+  const older=editor({tracks:['text','visual','audio']}).api;const oldProject=older.buildProject();
+  await minimal.prepareProject(oldProject);await minimal.applyProject();assert.equal(minimal.S.tracks.length,4);
+});
+
+test('empty auxiliary tracks may be removed and the remaining visual track stays active',()=>{
+  const {api,elements}=editor();
+  function remove(id){elements.get('trackHeads').listeners.click[0]({target:{closest(selector){return selector==='[data-track]'?{dataset:{track:id}}:{dataset:{action:'remove'}};}}});}
+  api.addTrack('audio');remove('a1');assert.equal(api.S.tracks.length,1);assert.equal(api.S.activeTrack,'v1');
+  api.addTrack('text');remove('t1');assert.equal(api.S.tracks.length,1);assert.equal(api.S.activeTrack,'v1');
+  remove('v1');assert.equal(api.S.tracks.length,1,'retain a visual canvas track');
+});
+
+test('multiselect duplication preserves offsets and grouping, and undoes as one edit',()=>{
+  const {api}=editor({tracks:['visual']});const {source,clip}=seed(api);const second=api.appendClip(source,0,2,'v2');second.start=3;
+  api.setSelection([{type:'clip',id:clip.id},{type:'clip',id:second.id}]);api.groupSelection();const group=clip.groupId;assert.ok(group);assert.equal(second.groupId,group);
+  api.duplicateSelected();assert.equal(api.S.clips.length,4);const copies=api.S.clips.slice(2);
+  assert.equal(copies[1].start-copies[0].start,3);assert.equal(copies[0].groupId,copies[1].groupId);assert.notEqual(copies[0].groupId,group);
+  api.undo();assert.equal(api.S.clips.length,2);assert.equal(api.selectionEntries().length,2);
+});
+
+test('locked tracks protect clips from split, movement and multiselect deletion',()=>{
+  const {api}=editor({tracks:['visual']});const {source,clip}=seed(api);const other=api.appendClip(source,0,2,'v2');api.S.tracks.find(t=>t.id==='v1').locked=true;
+  api.setSelection([{type:'clip',id:clip.id}]);api.S.time=3;api.splitAtPlayhead();assert.equal(api.S.clips.length,2);
+  assert.equal(api.moveClipTo(clip,4,'v2'),false);assert.equal(clip.start,0);
+  api.setSelection([{type:'clip',id:clip.id},{type:'clip',id:other.id}]);api.deleteSelected();assert.equal(api.S.clips.length,1);assert.equal(api.S.clips[0].id,clip.id);
+});
+
+test('ripple deletion trims crossing audio and subtitles while preserving locked tracks',()=>{
+  const {api}=editor({tracks:['visual', 'audio', 'text']});const {source,clip}=seed(api);Object.assign(source,{kind:'video',duration:30});Object.assign(clip,{start:5,in:0,out:3});
+  const later=api.appendClip(source,0,2);later.start=10;
+  const audio=api.appendClip(source,0,20,'a1');audio.audioOnly=true;audio.trackId='a1';audio.start=0;
+  const locked=api.appendClip(source,0,2,'v2');locked.start=12;api.S.tracks.find(t=>t.id==='v2').locked=true;
+  api.S.texts.push({id:'caption',trackId:'t1',start:6,end:12,content:'hello'});
+  api.setSelection([{type:'clip',id:clip.id}]);api.commitHistory();api.rippleDelete();
+  assert.equal(later.start,10,'removed objects are not mutated in place');assert.equal(api.S.clips.find(c=>c.id===later.id).start,7);
+  const parts=api.S.clips.filter(c=>c.audioOnly);assert.equal(parts.length,2);assert.equal(parts[0].out,5);assert.equal(parts[1].in,8);assert.equal(parts[1].start,5);
+  assert.equal(api.S.texts[0].start,5);assert.equal(api.S.texts[0].end,9);assert.equal(api.S.clips.find(c=>c.id===locked.id).start,12);
+  api.undo();assert.equal(api.S.clips.length,4);assert.equal(api.S.texts[0].start,6);
+});
+
+test('close gaps removes only globally empty intervals',()=>{
+  const {api}=editor();const {source,clip}=seed(api);Object.assign(clip,{start:2,in:0,out:2});const other=api.appendClip(source,0,2);other.start=7;
+  api.closeTimelineGaps();assert.equal(api.S.clips[0].start,0);assert.equal(api.S.clips[1].start,2);assert.equal(api.totalDuration(),4);
+});
+
+test('separated audio retains timing, automation and a group, without duplicating video or audio output',()=>{
+  const {api}=editor();const {source,clip}=seed(api);source.kind='video';clip.start=2;clip.volume=.4;clip.keyframes={volume:[{time:1,value:.4},{time:9,value:1}]};
+  api.setSelection([{type:'clip',id:clip.id}]);api.detachAudio();const audio=api.S.clips.find(c=>c.audioOnly);
+  assert.ok(audio);assert.equal(audio.in,clip.in);assert.equal(audio.start,clip.start);assert.equal(audio.groupId,clip.groupId);
+  assert.equal(api.clipKind(audio),'audio');assert.equal(api.visualRows(3).length,1);assert.equal(api.clipVolume(clip,1,8),0);assert.ok(api.clipVolume(audio,1,8)>0);
+  const project=api.buildProject();assert.doesNotThrow(()=>api.validateProject(project));assert.ok(project.clips.some(c=>c.audioOnly));
+  api.undo();assert.equal(api.S.clips.length,1);assert.equal(api.S.clips[0].muted,false);
+});
+
+test('source-relative keyframes interpolate and retain their animation across split and trim',()=>{
+  const {api}=editor();const {clip}=seed(api);clip.keyframes={scale:[{time:1,value:1},{time:9,value:2}]};
+  assert.equal(api.animationValue(clip,'scale',5),1.5);api.S.time=4;api.splitAtPlayhead();const [left,right]=api.S.clips;
+  assert.equal(api.animationValue(left,'scale',5),1.5);assert.equal(api.animationValue(right,'scale',5),1.5);
+  assert.notEqual(left.keyframes,right.keyframes);right.in=6;assert.equal(api.animationValue(right,'scale',6),1.625);
+});
+
+test('keyframe editing clamps values, replaces a point and validates saved animation',()=>{
+  const {api}=editor();const {clip,source}=seed(api);source.kind='video';api.S.time=2;api.setAnimationValue(clip,'opacity',.5,{force:true});api.setAnimationValue(clip,'opacity',2);
+  assert.equal(clip.keyframes.opacity.length,1);assert.equal(clip.keyframes.opacity[0].value,1);
+  const project=api.buildProject();assert.doesNotThrow(()=>api.validateProject(project));
+  project.clips[0].keyframes.scale=[{time:3,value:1},{time:2,value:2}];assert.throws(()=>api.validateProject(project),/关键帧/);
+  assert.throws(()=>api.validateAnimation({unknown:[]}),/关键帧/);
+});
+
+test('caption batch styling preserves text, timing and locked captions',()=>{
+  const {api}=editor({tracks:['text']});seed(api);const a={id:'ta',trackId:'t1',start:0,end:2,content:'one',size:7,color:'#ff0000',caption:true},b={id:'tb',trackId:'t1',start:3,end:4,content:'two',size:4,caption:true};
+  api.S.texts.push(a,b);api.setSelection([{type:'text',id:a.id}]);api.applyCaptionStyle();assert.equal(b.size,7);assert.equal(b.color,'#ff0000');assert.equal(b.content,'two');assert.equal(b.start,3);assert.equal(b.end,4);
+  api.S.tracks.find(t=>t.id==='t1').locked=true;a.size=9;api.applyCaptionStyle();assert.equal(b.size,7);
+});
+
+test('locked tracks, groups, separated audio and animation restore from a saved project',async()=>{
+  const {api}=editor();const {source,clip}=seed(api);source.kind='video';clip.keyframes={scale:[{time:1,value:1},{time:9,value:2}]};
+  api.setSelection([{type:'clip',id:clip.id}]);api.detachAudio();api.S.tracks.find(t=>t.id==='v1').locked=true;
+  const project=api.buildProject();assert.doesNotThrow(()=>api.validateProject(project));
+  await api.prepareProject(project);await api.applyProject();
+  assert.equal(api.S.tracks.find(t=>t.id==='v1').locked,true);const video=api.S.clips.find(c=>!c.audioOnly),audio=api.S.clips.find(c=>c.audioOnly);
+  assert.equal(video.groupId,audio.groupId);assert.equal(api.animationValue(video,'scale',5),1.5);assert.equal(audio.trackId,'a1');
+  const oldGroup=video.groupId;api.S.tracks.find(t=>t.id==='v1').locked=false;api.S.seq=Number(oldGroup.slice(1))-1;
+  api.setSelection(api.S.clips.map(c=>({type:'clip',id:c.id})));api.groupSelection();
+  assert.notEqual(video.groupId,oldGroup,'new groups must not reuse a restored group ID');assert.equal(video.groupId,audio.groupId);
+});
+
+test('detaching audio creates an unlocked audio track and rolls back the whole operation in one undo',()=>{
+  const {api}=editor({tracks:['audio']});const {source,clip}=seed(api);source.kind='video';api.S.tracks.find(t=>t.id==='a1').locked=true;
+  api.setSelection([{type:'clip',id:clip.id}]);api.commitHistory();const count=api.S.tracks.length;
+  api.detachAudio();assert.equal(api.S.tracks.length,count+1);assert.equal(api.S.clips.length,2);
+  api.undo();assert.equal(api.S.tracks.length,count);assert.equal(api.S.clips.length,1);assert.equal(api.S.clips[0].muted,false);
+});
 
 test('split preserves transform, volume, mute and fades on both halves', () => {
   const {api} = editor(); const {clip} = seed(api);
@@ -236,7 +348,7 @@ test('image/audio/video detection accepts common extensions without MIME hints',
 });
 
 test('parallel tracks use independent start times and total duration is their maximum', () => {
-  const {api}=editor();const {source,clip}=seed(api);
+  const {api}=editor({tracks:['visual']});const {source,clip}=seed(api);
   const audio={id:'audio',kind:'audio',duration:20};api.S.sources.push(audio);
   const music=api.appendClip(audio,0,20);assert.equal(music.trackId,'a1');assert.equal(music.start,0);
   api.moveClipTo(clip,5,'v2');assert.equal(api.totalDuration(),20);
@@ -245,7 +357,7 @@ test('parallel tracks use independent start times and total duration is their ma
 });
 
 test('image duration can be extended, split, and placed over the primary video', () => {
-  const {api}=editor();seed(api);const image={id:'image',kind:'image',duration:86400,width:500,height:500};api.S.sources.push(image);
+  const {api}=editor({tracks:['visual']});seed(api);const image={id:'image',kind:'image',duration:86400,width:500,height:500};api.S.sources.push(image);
   const overlay=api.appendClip(image,0,5,'v2');overlay.out=12;api.moveClipTo(overlay,2,'v2');
   assert.equal(api.totalDuration(),14);assert.equal(api.visualRows(3).at(-1).clip,overlay);
   api.S.time=6;api.splitAtPlayhead();
@@ -260,25 +372,25 @@ test('deleting a clip preserves the timing of clips on other tracks', () => {
 });
 
 test('track creation, mute and layer movement are undoable', () => {
-  const {api}=editor();const {clip}=seed(api);api.commitHistory();
+  const {api}=editor({tracks:['visual', 'audio']});const {clip}=seed(api);api.commitHistory();
   api.addTrack('audio');assert.equal(api.S.tracks.filter(t=>t.kind==='audio').length,2);
   api.undo();assert.equal(api.S.tracks.filter(t=>t.kind==='audio').length,1);api.redo();
   api.moveClipTo(api.S.clips[0],4,'v2');api.S.tracks.find(t=>t.id==='v2').muted=true;api.commitHistory();
   api.undo();assert.equal(api.S.clips[0].start,0);assert.equal(api.S.clips[0].trackId,'v1');
 });
 
-test('tracks can grow dynamically beyond the initial four without reusing IDs', () => {
+test('tracks can grow dynamically from one visual track without reusing IDs', () => {
   const {api}=editor();
   for(let n=0;n<8;n++)api.addTrack('visual');
   for(let n=0;n<5;n++)api.addTrack('audio');
   for(let n=0;n<3;n++)api.addTrack('text');
-  assert.equal(api.S.tracks.length,20);
-  assert.equal(new Set(api.S.tracks.map(t=>t.id)).size,20);
-  api.undo();assert.equal(api.S.tracks.length,19);api.redo();assert.equal(api.S.tracks.length,20);
+  assert.equal(api.S.tracks.length,17);
+  assert.equal(new Set(api.S.tracks.map(t=>t.id)).size,17);
+  api.undo();assert.equal(api.S.tracks.length,16);api.redo();assert.equal(api.S.tracks.length,17);
 });
 
 test('overlapping copies of a file receive independent media decoders', () => {
-  const {api}=editor();
+  const {api}=editor({tracks:['visual']});
   const original={cloneNode(){return {...playbackMedia(0),load(){},remove(){}};}};
   const source={id:'shared',kind:'video',duration:20,el:original};api.S.sources.push(source);
   const first=api.appendClip(source,0,5,'v1'),second=api.appendClip(source,10,15,'v2');
@@ -302,9 +414,9 @@ test('SRT supports BOM, CRLF, multiline captions and millisecond round trips',()
 
 test('AI subtitle drafts do not alter the timeline until applied, and apply is undoable',()=>{
   const {api,elements}=editor();api.setSpeechDraft([{start:.1,end:1.2,text:'测试字幕'}],{offset:5});
-  assert.equal(api.S.texts.length,0);assert.equal(api.S.tracks.length,4);
-  api.applySpeechCaptions();assert.equal(api.S.texts.length,1);assert.equal(api.S.texts[0].start,5.1);assert.equal(api.S.texts[0].end,6.2);assert.equal(api.S.tracks.length,5);
-  api.undo();assert.equal(api.S.texts.length,0);assert.equal(api.S.tracks.length,4);api.redo();assert.equal(api.S.texts.length,1);
+  assert.equal(api.S.texts.length,0);assert.equal(api.S.tracks.length,1);
+  api.applySpeechCaptions();assert.equal(api.S.texts.length,1);assert.equal(api.S.texts[0].start,5.1);assert.equal(api.S.texts[0].end,6.2);assert.equal(api.S.tracks.length,2);
+  api.undo();assert.equal(api.S.texts.length,0);assert.equal(api.S.tracks.length,1);api.redo();assert.equal(api.S.texts.length,1);
 });
 
 test('ASR captions map to a moved clip while preserving the analyzed trim range',()=>{
@@ -401,13 +513,13 @@ test('112 unique sticker PNGs match the embedded atlas and preserve old project 
 });
 
 test('stickers use upper visual tracks and restore from atlas IDs without embedding image bytes',async()=>{
-  const {api}=editor();const clip=await api.createSticker('heart',{at:2});assert.ok(clip);assert.equal(clip.trackId,'v2');assert.equal(clip.start,2);assert.equal(clip.scale,.28);
+  const {api}=editor();const clip=await api.createSticker('heart',{at:2});assert.ok(clip);assert.equal(clip.trackId,'v1');assert.equal(clip.start,2);assert.equal(clip.scale,.28);
   const project=api.buildProject({draft:true});assert.equal(project.sources[0].stickerId,'heart');assert.equal(project.sources[0].inlineImage,undefined);api.validateProject(project);
   api.S.sources=[];api.S.clips=[];await api.prepareProject(project);await api.applyProject();assert.equal(api.S.sources[0].stickerId,'heart');assert.equal(api.S.clips[0].start,2);assert.equal(api.S.sources[0].kind,'image');
 });
 
 test('stickers create an upper track when existing footage occupies the highest visual track',async()=>{
-  const {api}=editor();const {clip}=seed(api);api.moveClipTo(clip,0,'v2');const sticker=await api.createSticker('stars');assert.equal(sticker.trackId,'v3');assert.equal(api.S.tracks.filter(t=>t.kind==='visual')[0].id,'v3');
+  const {api}=editor();const {clip}=seed(api);const sticker=await api.createSticker('stars');assert.equal(sticker.trackId,'v2');assert.equal(api.S.tracks.filter(t=>t.kind==='visual')[0].id,'v2');
 });
 
 test('invalid project references and settings cannot replace the current timeline',()=>{
