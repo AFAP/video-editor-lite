@@ -36,9 +36,10 @@ class Element {
   showModal() { this.open=true; } close() { this.open=false; }
 }
 
-function editor({storageBlocked = false, tracks = []} = {}) {
+function editor({storageBlocked = false, tracks = [], page = {}} = {}) {
   const frames = [];
   const clock = {time:0};
+  const requests=[];
   const elements = new Map(ids.map(id => [id, new Element()]));
   const generic = new Element();
   const document = {
@@ -52,13 +53,13 @@ function editor({storageBlocked = false, tracks = []} = {}) {
     addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); },
   };
   const context = vm.createContext({
-    document, location:{port:''}, console, structuredClone, performance:{now:()=>clock.time},
+    document, location:{protocol:'file:',hostname:'',port:'',...page}, console, structuredClone, performance:{now:()=>clock.time},
     localStorage:{getItem() { if (storageBlocked) throw Error('blocked'); return null; },setItem() {}},
     setTimeout:() => 1, clearTimeout() {}, setInterval() {},
     requestAnimationFrame:fn => { frames.push(fn); return frames.length; },
     AbortController, ResizeObserver:class {observe() {}},
     Image:class {constructor(){this.naturalWidth=256;this.naturalHeight=256;this.complete=true;}async decode(){}},
-    fetch:async () => ({ok:true,json:async () => ({ok:true,version:'test'})}),
+    fetch:async url => {requests.push(url);return {ok:true,json:async () => ({ok:true,version:'test'})};},
     MediaRecorder:{isTypeSupported:() => true},
     window:{addEventListener() {},removeEventListener() {}},
   });
@@ -70,7 +71,7 @@ function editor({storageBlocked = false, tracks = []} = {}) {
     parseSrt,serializeSrt,setSpeechDraft,speechState,validateSpeechDraft,applySpeechCaptions,
     buildProject,validateProject,prepareProject,applyProject,projectState,connectPreviousClip,transitionState,
     setSelection,selectionEntries,groupSelection,detachAudio,rippleDelete,closeTimelineGaps,isLocked,clipKind,
-    animationValue,setAnimationValue,validateAnimation,applyCaptionStyle,openCaptionEditor,
+    animationValue,setAnimationValue,validateAnimation,applyCaptionStyle,openCaptionEditor,detectBridge,openSpeech,
     transitionCuts,transitionItems,insertTransition,removeTransition,selectedTransition,reconcileLinkedTransitions,paintTransitionDemo,
     createFancyText,applyFancyToSelected,applyTextPreset,FANCY_TEXT_PRESETS,FANCY_CATEGORIES,TEXT_PRESETS,createSticker,STICKER_ASSETS,STICKER_CATEGORIES,STICKER_ATLAS_SIZE,drawTextLayer,filterLibraryItems,
     quiet() { renderSources = renderTimeline = renderPanels = drawAt = updateSummary = refreshHistoryUi = () => {};
@@ -83,7 +84,7 @@ function editor({storageBlocked = false, tracks = []} = {}) {
   api.quiet();
   for(const kind of tracks)api.addTrack(kind);
   api.S.activeTrack='v1';
-  return {api, elements, document, frames, clock};
+  return {api, elements, document, frames, clock, requests};
 }
 
 function playbackMedia(initialTime) {
@@ -125,6 +126,22 @@ test('single-page document has unique IDs and every literal ID reference exists'
 test('shipped script starts with available or blocked browser storage', () => {
   assert.ok(editor().api);
   assert.deepEqual(JSON.parse(JSON.stringify(editor({storageBlocked:true}).api.readSettings())), {});
+});
+
+test('public browser edition never probes local services and still imports SRT captions',async()=>{
+  const {api,elements,requests}=editor({page:{protocol:'https:',hostname:'afap.github.io'}});
+  assert.equal(await api.detectBridge(false),false);assert.equal(requests.length,0);assert.equal(api.bridge.base,'');
+  assert.equal(elements.get('bridgeBadge').textContent,'浏览器版');assert.equal(elements.get('btnSpeech').textContent,'导入字幕');
+  await api.openSpeech();assert.equal(requests.length,0);assert.equal(elements.get('btnRecognize').disabled,true);
+  assert.equal(elements.get('btnTtsGenerate').disabled,true);assert.equal(elements.get('speechApiKey').value,'');
+  api.setSpeechDraft(api.parseSrt('1\n00:00:00,000 --> 00:00:01,000\nHello'));api.applySpeechCaptions();
+  assert.equal(api.S.texts[0].content,'Hello');assert.equal(requests.length,0);assert.equal(elements.get('btnProofreadCaptions').disabled,true);
+});
+
+test('local editor keeps bridge detection and AI speech available',async()=>{
+  const {api,elements,requests}=editor({page:{protocol:'http:',hostname:'127.0.0.1',port:'8787'}});
+  assert.equal(await api.detectBridge(false),true);assert.ok(requests.every(url=>url.startsWith('http://127.0.0.1:')));
+  assert.ok(api.bridge.base);assert.notEqual(elements.get('btnSpeech').textContent,'导入字幕');
 });
 
 function seed(api) {

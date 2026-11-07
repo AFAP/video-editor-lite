@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#191b1d"><title>Lite Video Editor · 轻量本地视频编辑器</title>
 <link rel="icon" href="./favicon.ico" sizes="any">
+<meta name="description" content="Lite Video Editor：轻量开源视频编辑器，浏览器打开即用。多轨、转场、字幕、关键帧、花字和贴纸，素材在本机处理。">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%20%20%3Ctitle%3E%E8%BD%BB%E5%89%AA%3C%2Ftitle%3E%0A%20%20%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%2260%22%20height%3D%2260%22%20rx%3D%2215%22%20fill%3D%22%23b5ed85%22%2F%3E%0A%20%20%3Cg%20fill%3D%22none%22%20stroke%3D%22%2318251c%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%0A%20%20%20%20%3Ccircle%20cx%3D%2219%22%20cy%3D%2218%22%20r%3D%227%22%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D%2219%22%20cy%3D%2246%22%20r%3D%227%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M24%2023%2048%2047M24%2041%2048%2016%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Ccircle%20cx%3D%2233%22%20cy%3D%2232%22%20r%3D%222.5%22%20fill%3D%22%2318251c%22%2F%3E%0A%3C%2Fsvg%3E%0A">
 <style>
 :root {
@@ -1988,6 +1989,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
 .library-tabs{gap:4px;padding:0 8px}.library-tabs button{white-space:nowrap;font-size:10px}.decoration-note{font-size:10px;color:var(--dim);line-height:1.7;margin:0 0 10px}.asset-filter{display:grid;grid-template-columns:minmax(0,1fr) 86px;gap:6px;margin-bottom:10px}.asset-filter input,.asset-filter select{min-width:0;width:100%;height:27px;border:1px solid var(--line2);border-radius:4px;background:#151b20;color:var(--dim);font-size:10px;padding:0 6px}.asset-empty{grid-column:1/-1;font-size:11px;line-height:1.8;color:var(--faint);padding:12px 0}.fancy-assets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.fancy-tile{padding:0;overflow:hidden;border:1px solid var(--line2);border-radius:6px;background:#18202b;text-align:left;color:var(--dim);cursor:grab}.fancy-tile:hover,.sticker-tile:hover{border-color:var(--accent);color:var(--accent)}.fancy-tile canvas{display:block;width:100%;height:auto}.fancy-tile-preview{display:block;width:100%;padding:0;border:0;background:none;cursor:grab}.fancy-tile-footer{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:5px 6px;font-size:10px;background:#202529}.fancy-apply{font-size:9px;border:1px solid var(--line2);border-radius:3px;padding:2px 4px;color:var(--accent);background:#26302a}.decoration-actions{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}.decoration-actions .btn{font-size:10px;padding:6px 8px}.sticker-assets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.sticker-tile{display:block;min-width:0;padding:5px;border:1px solid var(--line2);border-radius:6px;color:var(--dim);background-color:#252a30;background-image:conic-gradient(#30363e 25%,transparent 0 50%,#30363e 0 75%,transparent 0);background-size:12px 12px;cursor:grab}.sticker-thumb{display:block;width:100%;aspect-ratio:1;background-repeat:no-repeat}.sticker-label{display:block;padding:5px 0 1px;font-size:10px;background:#252a30;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sticker-caption{display:flex;justify-content:space-between;margin:0 0 8px;color:var(--dim);font-size:10px}.text-decoration-actions{margin:0 0 12px}.text-decoration-actions .btn{font-size:10px;padding:5px 8px}
 
 /* Local editing upgrade */
+.browser-only #speechTab-tts,.browser-only #speechTab-settings,.browser-only #speech-captions>.speech-card:first-child{display:none}
 @media(max-height:800px){.empty-visual{display:none}.stage-empty h1{font-size:20px;margin:0}.stage-empty p{margin:6px 0}.stage-empty small{display:none}}
 .tl-bar{overflow-x:auto}.tl-bar>.tool-btn{flex-shrink:0;white-space:nowrap}
 .waveform{position:absolute;bottom:2px;pointer-events:none;opacity:.8}
@@ -2272,12 +2274,14 @@ function saveSettings() {
 }
 
 /* ------------------------------------------------------- 本机 ffmpeg 小桥 */
+const CAN_USE_LOCAL_BRIDGE=location.protocol==='file:'||['','localhost','127.0.0.1','[::1]'].includes(location.hostname||'');
 const BRIDGE_PORTS = [...new Set([Number(location.port), 8787, 8788, 8789].filter(Boolean))];
 const bridge = { base: '', info: null };
 
 function renderBridgeBadge(state) {
   const el = $('#bridgeBadge');
   if (!el) return;
+  if(!CAN_USE_LOCAL_BRIDGE){el.classList.remove('on');el.textContent='浏览器版';el.title='素材在本机处理，使用浏览器实时录制导出。下载本机版可使用 FFmpeg 和 AI 语音。';return;}
   if (bridge.base) {
     el.classList.add('on');
     el.textContent = '本机 ffmpeg';
@@ -2291,6 +2295,7 @@ function renderBridgeBadge(state) {
 }
 
 async function detectBridge(quiet) {
+  if(!CAN_USE_LOCAL_BRIDGE){renderBridgeBadge();return false;}
   for (const port of BRIDGE_PORTS) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 1200);
@@ -4230,6 +4235,7 @@ $('#txTrack').addEventListener('change',()=>{const text=selectedText();if(!text)
 const speechState={busy:false,jobId:'',config:null,segments:[],revision:0,context:null,tts:null,rewrite:null,appliedTts:null};
 const speechFields=['ttsUrl','ttsModel','asrUrl','asrModel','chatUrl','chatModel'];
 function speechTab(name){
+  if(!CAN_USE_LOCAL_BRIDGE&&name!=='captions')return;
   for(const tab of ['captions','tts','settings']){
     $('#speech-'+tab).hidden=tab!==name;
     $('#speechTab-'+tab).setAttribute('aria-selected',String(tab===name));
@@ -4245,7 +4251,7 @@ function showSpeechError(error){$('#speechFeedback').textContent=error.message||
 function speechFeedback(text){$('#speechFeedback').textContent=text;$('#speechFeedback').className='speech-feedback';}
 function setSpeechBusy(busy){
   speechState.busy=busy;
-  for(const id of ['#btnRecognize','#btnTtsGenerate','#btnPolishScript','#btnProofreadCaptions','#btnSpeechSave','#btnSpeechClear'])$(id).disabled=busy;
+  for(const id of ['#btnRecognize','#btnTtsGenerate','#btnPolishScript','#btnProofreadCaptions','#btnSpeechSave','#btnSpeechClear'])$(id).disabled=busy||!CAN_USE_LOCAL_BRIDGE;
   $('#speechProgress').hidden=!busy;$('#btnSpeechCancel').disabled=!busy;
 }
 function fillSpeechConfig(config){
@@ -4262,6 +4268,12 @@ async function openSpeech(){
   const selected=selectedClip();if(selected&&clips.includes(selected))$('#speechClip').value=selected.id;
   updateSpeechSource();$('#speechCaptionTrack').innerHTML=trackOptions('text');
   $('#ttsAt').value=S.time.toFixed(2);
+  if(!CAN_USE_LOCAL_BRIDGE){
+    speechTab('captions');$('#speechConfigState').textContent='本地 SRT 字幕';
+    const importer=$('#speechSrtPaste').closest?.('details');if(importer)importer.open=true;
+    speechFeedback('浏览器版支持 SRT 字幕导入与编辑。自动识别和 AI 配音需下载本机版、启动桥接器后使用。');
+    renderSpeechDraft();return;
+  }
   try{if(!bridge.base)await detectBridge(true);fillSpeechConfig((await speechRequest('config')).config);}
   catch(error){showSpeechError(error);$('#speechConfigState').textContent='需要本机服务';}
   renderSpeechDraft();
@@ -4415,6 +4427,7 @@ $('#btnCloseSpeech').addEventListener('click',()=>$('#speechDialog').close());
 $('#speechDialog').addEventListener('close',()=>{$('#ttsPreview').pause();$('#speechApiKey').value='';});
 for(const name of ['captions','tts','settings'])$('#speechTab-'+name).addEventListener('click',()=>speechTab(name));
 $('.speech-tabs').addEventListener('keydown',event=>{
+  if(!CAN_USE_LOCAL_BRIDGE)return;
   const tabs=['captions','tts','settings'];if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
   const index=tabs.indexOf(String(event.target.id).replace('speechTab-',''));if(index<0)return;
   event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?2:(index+(event.key==='ArrowRight'?1:2))%3;
@@ -5177,6 +5190,10 @@ stage.addEventListener('pointerdown',event=>{if(isLocked(selectedClip()||selecte
 
 
 /* ------------------------------------------------------------------ 启动 */
+if(!CAN_USE_LOCAL_BRIDGE){
+  document.body.classList.add('browser-only');$('#btnSpeech').textContent='导入字幕';$('#btnSpeech').title='导入与编辑本地 SRT 字幕';
+  $('#speechTitle').textContent='字幕工作台';$('#speechTab-captions').textContent='SRT 字幕';setSpeechBusy(false);
+}
 syncForm();
 syncStage();
 renderSources();
@@ -5193,7 +5210,7 @@ commitHistory();
 initProjectRecovery();
 renderBridgeBadge('checking');
 void detectBridge(true);
-setInterval(() => { if (!bridge.base) void detectBridge(true); }, 6000);
+if(CAN_USE_LOCAL_BRIDGE)setInterval(() => { if (!bridge.base) void detectBridge(true); }, 6000);
 if (!pickMime(settings.format)) toast('这个浏览器不支持 MediaRecorder，导出需要本机 ffmpeg', true);
 })();
 </script></body></html>
