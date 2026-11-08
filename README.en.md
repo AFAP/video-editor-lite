@@ -33,7 +33,7 @@ Open [http://127.0.0.1:8787/](http://127.0.0.1:8787/) to export through the loca
 - **Visuals and animation:** Canvas presets, keyframe animation, and timeline transitions with previews.
 - **Text and stickers:** 30 editable text styles and 112 built-in transparent stickers.
 - **Captions and speech:** SRT import/export, Bailian speech recognition, automatic captions, TTS, and text editing.
-- **Project saving:** Save projects, recover drafts, and relink original media when reopening.
+- **Project saving:** Save projects, recover drafts, reconnect authorized media, and replace missing files individually.
 
 AI features require the bridge and your own Bailian endpoints, models, and key, entered in the UI. They send the relevant audio or text to the provider and may incur usage charges.
 

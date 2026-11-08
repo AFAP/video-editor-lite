@@ -10,6 +10,8 @@
 - Uploaded media, generated speech, and exported files are written to the system temporary directory `video-tool-bridge/`. Process exit does not guarantee immediate deletion; clean up after using a shared device.
 - 工程和草稿可能含文件名、字幕、图片等内容，分享前请检查。仅使用你信任的 AI 接口地址。
 - Projects and drafts may include filenames, captions, and images. Review them before sharing and use only trusted AI endpoints.
+- 支持的浏览器会将你选择的文件授权引用保存在本机 IndexedDB，用于恢复工程；工程 JSON 只保存引用编号及文件信息，不包含绝对路径。可通过浏览器网站设置撤销文件权限、清除网站数据。
+- Supported browsers store selected file handles locally in IndexedDB for project recovery. Project JSON contains reference IDs and file metadata, not absolute paths. Revoke file permissions or clear site data in browser settings to remove access.
 
 报告漏洞时请先联系仓库维护者。公开 Issue 中不要附带 Key、私有媒体、完整本机路径或其他敏感信息。
 
