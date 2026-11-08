@@ -2004,6 +2004,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
 .kf-actions{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0}.kf-points{display:flex;gap:5px;flex-wrap:wrap;max-height:140px;overflow:auto}.kf-point{font:11px/1.4 system-ui;border:1px solid var(--line);border-radius:4px;padding:4px 6px;color:#ffe4a9;background:var(--panel2)}
 #captionDialog{width:min(960px,94vw);max-height:85vh;padding:20px}.caption-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.caption-toolbar input{min-width:100px;flex:1}.caption-rows{overflow:auto;max-height:55vh}.caption-row{display:grid;grid-template-columns:112px minmax(0,1fr) 50px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}.caption-row textarea{width:100%;min-height:42px;resize:vertical}.caption-row small{color:var(--dim)}
 
+.project-media-info{min-width:0;flex:1;display:grid;gap:5px}.project-media-info small{white-space:normal;overflow-wrap:anywhere}.project-media-error{color:#f0a49c!important}.project-media-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.project-media-actions .btn{white-space:nowrap}#projectLinks{max-height:45vh}.project-body>.speech-row{margin-top:12px}@media(max-width:580px){.project-media-row{align-items:flex-start;flex-direction:column}.project-media-actions{justify-content:flex-start}}
 </style></head>
 <body><div id="app">
 <header class="app-header">
@@ -2182,7 +2183,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
 <input type="file" id="speechSrtInput" accept=".srt,text/plain,application/x-subrip" hidden>
 
 <dialog id="captionDialog" aria-labelledby="captionTitle"><div class="dialog-heading"><h2 id="captionTitle">字幕 / 文字编辑</h2><span class="grow"></span><small id="captionCount"></small><button class="icon-btn" id="btnCloseCaptions" aria-label="关闭字幕编辑">×</button></div><div class="caption-toolbar"><select id="captionTrack" aria-label="字幕所在轨道"></select><input id="captionSearch" type="search" placeholder="搜索字幕" aria-label="搜索字幕"><input id="captionReplace" placeholder="替换为" aria-label="替换文字"><button class="btn sm" id="btnCaptionReplace">替换匹配项</button></div><p class="note">点击时间返回预览画面；统一样式可在右侧文字属性中操作，不改动字幕内容和起止时间。</p><div class="caption-rows" id="captionRows"></div></dialog>
-<dialog id="projectDialog" aria-labelledby="projectTitle"><div class="dialog-heading"><div><h2 id="projectTitle">打开工程 / 恢复草稿</h2><p>工程文件不打包原视频和音频；AI 配音可先下载 WAV 备份。</p></div><span class="grow"></span><button class="icon-btn" id="btnCloseProject" aria-label="关闭工程窗口">×</button></div><div class="project-body"><p id="projectLoadNote" class="note"></p><div id="projectLinks"></div><div class="speech-row"><button class="btn" id="btnProjectRelink">选择原始素材文件</button><button class="btn primary" id="btnApplyProject">载入工程</button></div></div></dialog><input type="file" id="projectFile" accept=".json,.lightcut" hidden><input type="file" id="projectMediaFiles" accept="video/*,image/*,audio/*,.mkv,.flac,.m4a" multiple hidden>
+<dialog id="projectDialog" aria-labelledby="projectTitle"><div class="dialog-heading"><div><h2 id="projectTitle">打开工程 / 恢复草稿</h2><p>自动尝试读取已授权的素材；找不到时可选择替代文件。</p></div><span class="grow"></span><button class="icon-btn" id="btnCloseProject" aria-label="关闭工程窗口">×</button></div><div class="project-body"><p id="projectLoadNote" class="note"></p><div id="projectLinks"></div><p class="speech-note">工程不打包原视频和音频。支持的浏览器会在本机记住文件授权；换浏览器、清理网站数据或移动文件后需重新选择。AI 配音请先下载 WAV 备份。</p><div class="speech-row"><button class="btn" id="btnProjectRelink">选择原始素材文件</button><button class="btn primary" id="btnApplyProject">载入工程</button></div></div></dialog><input type="file" id="projectFile" accept=".json,.lightcut" hidden><input type="file" id="projectMediaFiles" accept="video/*,image/*,audio/*,.mkv,.avi,.ts,.mts,.flv,.wmv,.flac,.m4a,.opus" multiple hidden>
 <input type="file" id="fileInput" accept="video/*,image/*,audio/*,.mkv,.avi,.ts,.mts,.flv,.wmv,.flac,.m4a,.opus" multiple hidden><div id="mediaSink" style="position:fixed;left:-10000px;top:0;width:2px;height:2px;overflow:hidden;opacity:.01;pointer-events:none"></div>
 <div class="drop-cover" id="dropCover" hidden><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></svg><span>松开鼠标，导入素材</span></div><div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -2555,9 +2556,79 @@ function audioThumbnail() {
   g.fillStyle='#b5ed85';g.font='42px system-ui';g.textAlign='center';g.fillText('♫',112,78);
   return c.toDataURL('image/png');
 }
-async function importImage(file) {
+/* File handles stay in this browser's IndexedDB; JSON only stores an opaque ID. */
+const pickedFileReferences=new WeakMap(),fileReferences=new Map();
+function normalizedFileName(name){return String(name||'').split(/[\\/]/).at(-1).normalize('NFC').toLowerCase();}
+function sameMediaFile(descriptor,file,{exact=true}={}){
+  return descriptor.kind===(file.kind||mediaKind(file))&&
+    normalizedFileName(descriptor.fileName||descriptor.name)===normalizedFileName(file.fileName||file.name)&&
+    (!exact||descriptor.size===file.size);
+}
+async function fileReferenceRequest(mode,operation){
+  if(!globalThis.indexedDB)return null;
+  return new Promise(resolve=>{
+    let db,settled=false;
+    const finish=value=>{if(settled)return;settled=true;clearTimeout(timer);try{db?.close();}catch{}resolve(value);};
+    const timer=setTimeout(()=>finish(null),3000);
+    try{
+      const open=indexedDB.open('lightcut-media-references',1);
+      open.onupgradeneeded=()=>{if(!open.result.objectStoreNames.contains('files'))open.result.createObjectStore('files',{keyPath:'id'});};
+      open.onerror=open.onblocked=()=>finish(null);
+      open.onsuccess=()=>{
+        db=open.result;if(settled){db.close();return;}
+        try{
+          const tx=db.transaction('files',mode),request=operation(tx.objectStore('files'));
+          tx.oncomplete=()=>finish(request.result);tx.onerror=tx.onabort=()=>finish(null);
+        }catch{finish(null);}
+      };
+    }catch{finish(null);}
+  });
+}
+async function rememberSourceFile(source,file){
+  source.file=file;source.fileName=file.name;source.lastModified=Number(file.lastModified)||0;
+  if(file.webkitRelativePath)source.relativePath=file.webkitRelativePath;
+  const reference=pickedFileReferences.get(file);if(!reference)return;
+  source.fileHandleId=reference.id;fileReferences.set(reference.id,reference);
+  await fileReferenceRequest('readwrite',store=>store.put(reference));
+}
+async function readFileReferences(){
+  const stored=await fileReferenceRequest('readonly',store=>store.getAll());
+  for(const reference of stored||[])if(reference?.id&&reference.handle)fileReferences.set(reference.id,reference);
+  return [...fileReferences.values()];
+}
+function bindPickedFile(file,handle){
+  const id='media-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+  pickedFileReferences.set(file,{id,handle,name:file.name,size:file.size,kind:mediaKind(file),lastModified:file.lastModified});
+}
+async function chooseMediaFiles(multiple=true){
+  if(typeof window.showOpenFilePicker!=='function')return null;
+  try{
+    const handles=await window.showOpenFilePicker({multiple,types:[{description:'视频、图片和音频',accept:{'video/*':['.mp4','.mov','.mkv','.webm','.avi','.m4v','.ts','.mts','.flv','.wmv','.mpeg','.mpg','.3gp','.ogv'],'audio/*':['.mp3','.wav','.m4a','.aac','.flac','.ogg','.opus','.aif','.aiff','.wma'],'image/*':['.png','.jpg','.jpeg','.webp','.gif','.bmp','.avif']}}]});
+    const files=[];
+    for(const handle of handles){
+      const file=await handle.getFile();bindPickedFile(file,handle);files.push(file);
+    }
+    return files;
+  }catch(error){
+    if(error.name==='AbortError')return [];
+    if(['SecurityError','NotSupportedError'].includes(error.name))return null;
+    toast('选择文件失败：'+error.message,true);return [];
+  }
+}
+async function importPickedFiles(files){
+  if(S.busy||S.rendering||!files?.length)return;
+  S.busy=true;refreshHistoryUi();
+  try{await addFiles(files);}finally{S.busy=false;refreshHistoryUi();}
+}
+async function pickImportMedia(){
+  if(S.busy||S.rendering)return;
+  const files=await chooseMediaFiles();
+  if(files===null)$('#fileInput').click();else await importPickedFiles(files);
+}
+async function loadImageFile(file) {
   const url=URL.createObjectURL(file),img=new Image();img.src=url;
-  try{await img.decode();}catch{URL.revokeObjectURL(url);toast('无法解码图片：'+file.name,true);return;}
+  try{
+  await img.decode();
   const source={id:'s'+(++S.seq),kind:'image',name:file.name,size:file.size,url,img,el:null,duration:86400,width:img.naturalWidth,height:img.naturalHeight,thumb:url,node:null,bridgeId:''};
   const c=document.createElement('canvas');c.width=source.width;c.height=source.height;c.getContext('2d').drawImage(img,0,0);
   const still=new Image();still.src=c.toDataURL('image/png');await still.decode();source.img=still;
@@ -2568,84 +2639,87 @@ async function importImage(file) {
       const data=await uploadToBridge(bridge.base+'/overlay',blob);source.bridgeId=data.id;
     }catch(error){toast('图片暂用浏览器导出：'+error.message,true);}
   }
-  S.sources.push(source);appendClip(source,0,5);renderSources();renderTimeline();updateSummary();await seek(S.time);commitHistory();
+  return source;
+  }catch(error){URL.revokeObjectURL(url);throw Error('无法解码图片：'+file.name+'（'+error.message+'）');}
 }
 
-
-async function addFiles(fileList) {
-  const files = Array.from(fileList || []).filter((f) => f && f.size > 0);
-  if (!files.length) return toast('没有选到文件', true);
-
-  for (const file of files) {
-    const kind=mediaKind(file);
-    if (!kind) {
-      toast('跳过「' + file.name + '」：不支持的素材类型', true);
-      continue;
+/* Loading a file must not change tracks, clips, selection or undo history. */
+async function loadSourceFile(file) {
+  if(!file?.size)throw Error('文件为空');
+  const kind=mediaKind(file);
+  if(!kind)throw Error('不支持的素材类型：'+file.name);
+  if(kind==='image'){const source=await loadImageFile(file);await rememberSourceFile(source,file);return source;}
+  let remote = null;
+  if (bridge.base) {
+    try {
+      uploadProgress(file.name, 0);
+      remote = await uploadToBridge(
+        bridge.base + '/upload?name=' + encodeURIComponent(file.name),
+        file,
+        (ratio) => uploadProgress(file.name, ratio),
+      );
+      clearToast();
+    } catch (failure) {
+      toast('交给本机 ffmpeg 失败：' + failure.message + '（改用浏览器解码）', true);
     }
-    if(kind==='image'){await importImage(file);continue;}
-    let remote = null;
-    if (bridge.base) {
-      try {
-        uploadProgress(file.name, 0);
-        remote = await uploadToBridge(
-          bridge.base + '/upload?name=' + encodeURIComponent(file.name),
-          file,
-          (ratio) => uploadProgress(file.name, ratio),
-        );
-        clearToast();
-      } catch (failure) {
-        toast('交给本机 ffmpeg 失败：' + failure.message + '（改用浏览器解码）', true);
-      }
-    }
+  }
 
-    const url = URL.createObjectURL(file);
-    const video = document.createElement(kind==='audio'?'audio':'video');
-    video.src = url;
-    video.preload = 'auto';
-    video.playsInline = true;
-    video.style.cssText = 'position:fixed;left:-10000px;top:0;width:2px;height:2px;pointer-events:none';
-    $('#mediaSink').appendChild(video);
-    video.load();
+  const url = URL.createObjectURL(file);
+  const video = document.createElement(kind==='audio'?'audio':'video');
+  video.src = url;
+  video.preload = 'auto';
+  video.playsInline = true;
+  video.style.cssText = 'position:fixed;left:-10000px;top:0;width:2px;height:2px;pointer-events:none';
+  $('#mediaSink').appendChild(video);
+  video.load();
 
-    const meta = await loadMeta(video);
+  const meta = await loadMeta(video);
 
-    if ((!meta || !meta.duration) && remote) {
-      URL.revokeObjectURL(url);
-      try { video.remove(); } catch { /* 忽略 */ }
-      const source = {
-        id: 's' + (++S.seq), kind, name: file.name, size: file.size, url: '', el: null,
-        duration: remote.duration, width: remote.width, height: remote.height, hasAudio:remote.hasAudio,
-        thumb: '', node: null, bridgeId: remote.id,
-      };
-      S.sources.push(source);source.file=file;queueWaveform(source,file);
-      renderSources();
-      appendClip(source, 0, source.duration);
-      toast('「' + file.name + '」浏览器解不了，但本机 ffmpeg 能处理（没有预览，可以按时间裁）');
-      continue;
-    }
-
-    if (!meta || !meta.duration) {
-      URL.revokeObjectURL(url);
-      try { video.remove(); } catch { /* 忽略 */ }
-      const ext = (file.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
-      const hevcHint = (ext === '.mp4' || ext === '.mov' || ext === '.m4v') && !canPlayHevc()
-        ? '：很可能是 H.265/HEVC 编码，这个浏览器解不了。启动本机 ffmpeg 后就能剪。'
-        : '';
-      toast('打不开「' + file.name + '」' + hevcHint, true);
-      continue;
-    }
-
+  if ((!meta || !meta.duration) && remote) {
+    URL.revokeObjectURL(url);
+    try { video.remove(); } catch { /* 忽略 */ }
     const source = {
-      id: 's' + (++S.seq), kind, name: file.name, size: file.size, url, el: video,
-      duration: meta.duration, width: meta.width, height: meta.height,
-      thumb: '', node: null, bridgeId: remote ? remote.id : '', hasAudio:remote?.hasAudio,
+      id: 's' + (++S.seq), kind, name: file.name, size: file.size, url: '', el: null,
+      duration: remote.duration, width: remote.width, height: remote.height, hasAudio:remote.hasAudio,
+      thumb: '', node: null, bridgeId: remote.id,
     };
-    S.sources.push(source);source.file=file;queueWaveform(source,file);
-    renderSources();
-    appendClip(source, 0, source.duration);
-    if (kind==='video'&&!source.thumb) refreshThumb(source);
-    if (kind==='audio') source.thumb=audioThumbnail();
-    await seekTo(video, 0, 3000);
+    await rememberSourceFile(source,file);
+    return source;
+  }
+
+  if (!meta || !meta.duration) {
+    URL.revokeObjectURL(url);
+    try { video.remove(); } catch { /* 忽略 */ }
+    const ext = (file.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+    const hevcHint = (ext === '.mp4' || ext === '.mov' || ext === '.m4v') && !canPlayHevc()
+      ? '：很可能是 H.265/HEVC 编码，这个浏览器解不了。启动本机 ffmpeg 后就能剪。'
+      : '';
+    throw Error('打不开「' + file.name + '」' + hevcHint);
+  }
+
+  const source = {
+    id: 's' + (++S.seq), kind, name: file.name, size: file.size, url, el: video,
+    duration: meta.duration, width: meta.width, height: meta.height,
+    thumb: '', node: null, bridgeId: remote ? remote.id : '', hasAudio:remote?.hasAudio,
+  };
+  if (kind==='audio') source.thumb=audioThumbnail();
+  await rememberSourceFile(source,file);
+  return source;
+}
+
+function activateSource(source){
+  queueWaveform(source,source.file);
+  if(source.kind==='video'&&source.el&&!source.thumb)refreshThumb(source);
+}
+async function addFiles(fileList) {
+  const files=Array.from(fileList||[]);
+  if(!files.length)return toast('没有选到文件',true);
+  for(const file of files){
+    try{
+      const source=await loadSourceFile(file);S.sources.push(source);
+      appendClip(source,0,source.kind==='image'?5:source.duration);activateSource(source);
+      if(source.kind!=='image'&&!source.el)toast('「'+file.name+'」仅支持本机 FFmpeg 导出，浏览器无法预览');
+    }catch(error){toast(error.message,true);}
   }
   renderSources();
   renderTimeline();
@@ -3963,14 +4037,12 @@ $('#setName').addEventListener('input', () => {
 });
 
 /* ------------------------------------------------------------------ 事件 */
-$('#btnImport').addEventListener('click', () => $('#fileInput').click());
-$('#btnImport2').addEventListener('click', () => $('#fileInput').click());
+$('#btnImport').addEventListener('click', pickImportMedia);
+$('#btnImport2').addEventListener('click', pickImportMedia);
 $('#fileInput').addEventListener('change', async (event) => {
   const files = Array.from(event.target.files || []);
   event.target.value = '';
-  if (S.busy) return;
-  S.busy = true; refreshHistoryUi();
-  try { await addFiles(files); } finally { S.busy = false; refreshHistoryUi(); }
+  await importPickedFiles(files);
 });
 $('#btnExport').addEventListener('click', openExport);
 $('#btnStart').addEventListener('click', () => startExport());
@@ -4002,7 +4074,7 @@ document.addEventListener('keydown', (event) => {
   const editing = ['input', 'textarea', 'select'].includes(tag) || event.target.isContentEditable;
   const mod = event.ctrlKey || event.metaKey;
   if (document.querySelector('dialog[open]')) return;
-  if (mod && event.key.toLowerCase() === 'o') { event.preventDefault(); if (!S.busy) $('#fileInput').click(); return; }
+  if (mod && event.key.toLowerCase() === 'o') { event.preventDefault(); pickImportMedia(); return; }
   if (mod && event.key.toLowerCase() === 'e') { event.preventDefault(); openExport(); return; }
   if (editing || S.rendering || S.busy) return;
   if (mod) {
@@ -4035,8 +4107,18 @@ window.addEventListener('drop', async (event) => {
   if (S.rendering || document.querySelector('dialog[open]')) return;
   if (S.busy) return;
   if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length) {
+    const files=Array.from(event.dataTransfer.files);
+    // Capture handles during the drop event, before DataTransfer becomes protected.
+    const handles=Array.from(event.dataTransfer.items||[]).filter(item=>item.kind==='file').map(item=>{
+      try{return item.getAsFileSystemHandle?.().catch(()=>null);}catch{return null;}
+    });
     S.busy = true; refreshHistoryUi();
-    try { await addFiles(event.dataTransfer.files); } finally { S.busy = false; refreshHistoryUi(); }
+    try {
+      for(const handle of await Promise.all(handles))if(handle?.kind==='file'){
+        try{const picked=await handle.getFile(),matches=files.filter(file=>sameMediaFile({name:picked.name,size:picked.size,kind:mediaKind(picked)},file));if(matches.length===1)bindPickedFile(matches[0],handle);}catch{}
+      }
+      await addFiles(files);
+    } finally { S.busy = false; refreshHistoryUi(); }
   }
 });
 
@@ -4178,7 +4260,7 @@ $('.library-tabs').addEventListener('keydown',event=>{
   const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowRight'?1:tabs.length-1))%tabs.length;setLibraryTab(keys[next]);$('#'+tabs[next]).focus();
 });
 $('#sourceSearch').addEventListener('input', renderSources);
-for (const id of ['#btnLibraryImport', '#btnDropImport']) $(id).addEventListener('click', () => { if (!S.busy) $('#fileInput').click(); });
+for (const id of ['#btnLibraryImport', '#btnDropImport']) $(id).addEventListener('click', pickImportMedia);
 $('#btnTryAsset').addEventListener('click', () => setLibraryTab(true));
 $('#btnUndo').addEventListener('click', undo);
 $('#btnRedo').addEventListener('click', redo);
@@ -4836,12 +4918,13 @@ $('#btnDownloadStickerAtlas').addEventListener('click',downloadStickerAtlas);
 $('#btnDownloadStickerMap').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({image:'轻剪-'+STICKER_ASSETS.length+'张透明贴纸图集.png',size:STICKER_ATLAS_SIZE,frames:STICKER_ASSETS},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='轻剪-贴纸坐标.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),10000);});
 
 /* Project files store edit decisions and media references, never API credentials. */
-const projectState={booting:true,pending:null,relinking:false,timer:0};
+const projectState={booting:true,pending:null,relinking:false,timer:0,pickerTarget:''};
 const PROJECT_KEY='vc.project.draft.v1';
 const CLIP_KEYS=['audioOnly','audioDetached','groupId','keyframes','start','in','out','scale','ox','oy','opacity','volume','muted','fadeIn','fadeOut','transitionIn','transitionOut'];
 const TEXT_KEYS=[...TEXT_DECOR_KEYS,'start','end','content','x','y','size','color','bold','bg','bgColor','bgAlpha','stroke','strokeColor','strokeWidth','shadow','spacing','caption','groupId'];
 function buildProject({draft=false}={}){
   const sources=S.sources.map(source=>({id:source.id,name:source.name,fileName:source.fileName||source.name,kind:source.kind,size:source.size,duration:source.duration,width:source.width,height:source.height,
+    fileHandleId:source.fileHandleId,lastModified:source.lastModified,relativePath:source.relativePath,
     stickerId:source.stickerId,assetId:source.kind==='image'&&source.url?.startsWith('data:')?ASSETS.find(a=>a.name===source.name)?.id:null,
     inlineImage:source.kind==='image'&&!source.stickerId&&/^data:image\/(png|jpeg|webp);base64,/.test(source.url||'')&&(!draft||source.url.length<500000)?source.url:undefined}));
   return {format:'lightcut-project',version:1,savedAt:new Date().toISOString(),settings:Object.fromEntries(['format','size','fps','quality','name','aspect'].map(key=>[key,settings[key]])),
@@ -4856,6 +4939,8 @@ function validateProject(data){
   for(const track of data.tracks){if(!/^[vat]\d+$/.test(track.id)||!['visual','audio','text'].includes(track.kind)||tracks.has(track.id))throw new Error('工程轨道无效');tracks.set(track.id,track);}
   if(!data.tracks.some(t=>t.kind==='visual'))throw new Error('工程至少需要一条画面轨道');
   const sources=new Map();for(const source of data.sources){if(typeof source.id!=='string'||sources.has(source.id)||!['video','audio','image'].includes(source.kind)||typeof source.name!=='string'||!Number.isFinite(source.size)||source.size<0)throw new Error('工程素材信息无效');
+    for(const key of ['fileName','relativePath','fileHandleId'])if(source[key]!==undefined&&(typeof source[key]!=='string'||source[key].length>4096))throw Error('工程素材引用无效');
+    if(source.lastModified!==undefined&&(!Number.isFinite(source.lastModified)||source.lastModified<0))throw Error('工程素材修改时间无效');
     if(source.stickerId&&!STICKER_ASSETS.some(item=>item.id===source.stickerId))throw new Error('工程贴纸引用无效');
     if(source.inlineImage&&(!/^data:image\/(png|jpeg|webp);base64,/.test(source.inlineImage)||source.inlineImage.length>30*1024*1024))throw new Error('工程内嵌图片无效或过大');sources.set(source.id,source);
   }
@@ -4875,7 +4960,7 @@ function validateProject(data){
   return data;
 }
 function downloadProject(){
-  try{const blob=new Blob([JSON.stringify(buildProject(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=(settings.name||'未命名项目').replace(/[\\/:*?"<>|]/g,'_')+'.lightcut.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast('工程已保存；视频和音频不打包，重新打开时可关联原文件');}catch(error){toast('保存失败：'+error.message,true);}
+  try{const blob=new Blob([JSON.stringify(buildProject(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=(settings.name||'未命名项目').replace(/[\\/:*?"<>|]/g,'_')+'.lightcut.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast('工程已保存；授权过的素材会尝试自动恢复，失效时可选择替代文件');}catch(error){toast('保存失败：'+error.message,true);}
 }
 function queueProjectDraft(){
   if(projectState.booting||projectState.relinking)return;clearTimeout(projectState.timer);
@@ -4886,35 +4971,132 @@ function initProjectRecovery(){
 }
 async function prepareProject(data){
   if(S.rendering||S.busy||projectState.relinking)return toast('请等待当前任务完成');
+  let pending;
   try{
     validateProject(data);stopPlayback();const loaded=new Map(),owned=[];
+    if(projectState.pending)closeProjectDialog();
+    pending={data,loaded,owned,handles:new Map(),errors:new Map(),notice:''};projectState.pending=pending;
+    projectState.relinking=true;S.busy=true;renderProjectLinks();$('#projectDialog').showModal();
+    const references=await readFileReferences();
     for(const descriptor of data.sources){
-      const existing=S.sources.find(source=>source.name===descriptor.name&&source.size===descriptor.size&&source.kind===descriptor.kind);
+      const existing=S.sources.find(source=>sameMediaFile(descriptor,source)&&(!descriptor.lastModified||!source.lastModified||descriptor.lastModified===source.lastModified)&&!projectSourceError(data,descriptor,source));
       if(existing){loaded.set(descriptor.id,existing);continue;}
       const def=descriptor.assetId&&ASSETS.find(asset=>asset.id===descriptor.assetId);let url=descriptor.inlineImage;
       if(def)url=paintAsset(def,1920,1080).toDataURL('image/png');
       if(descriptor.stickerId)url=(await stickerImage(descriptor.stickerId)).url;
-      if(url){const img=new Image();img.src=url;await img.decode();const source={id:'s'+(++S.seq),stickerId:descriptor.stickerId,kind:'image',name:descriptor.name,size:descriptor.size,url,img,el:null,duration:86400,width:img.naturalWidth,height:img.naturalHeight,thumb:url,node:null,bridgeId:''};loaded.set(descriptor.id,source);owned.push(source);}
+      if(url){
+        try{const img=new Image();img.src=url;await img.decode();const source={id:'s'+(++S.seq),stickerId:descriptor.stickerId,kind:'image',name:descriptor.name,size:descriptor.size,url,img,el:null,duration:86400,width:img.naturalWidth,height:img.naturalHeight,thumb:url,node:null,bridgeId:''};loaded.set(descriptor.id,source);owned.push(source);}
+        catch{pending.errors.set(descriptor.id,'内嵌图片无法读取，请选择替代图片');}
+        continue;
+      }
+      const candidates=descriptor.fileHandleId?references.filter(ref=>ref.id===descriptor.fileHandleId):references.filter(ref=>sameMediaFile(descriptor,ref)&&(!descriptor.lastModified||descriptor.lastModified===ref.lastModified));
+      if(candidates.length!==1)continue;
+      const reference=candidates[0];
+      try{
+        const permission=await reference.handle.queryPermission({mode:'read'});
+        if(permission==='granted')await restoreProjectReference(pending,descriptor,reference);
+        else if(permission==='prompt')pending.handles.set(descriptor.id,reference);
+        else pending.errors.set(descriptor.id,'读取授权已失效，请重新选择文件');
+      }catch{pending.errors.set(descriptor.id,'原文件无法读取，请选择替代文件');}
     }
-    projectState.pending={data,loaded,owned};renderProjectLinks();$('#projectDialog').showModal();
   }catch(error){toast('读取工程失败：'+error.message,true);}
+  finally{if(pending){projectState.relinking=false;S.busy=false;renderProjectLinks();refreshHistoryUi();}}
+}
+function projectSourceError(data,descriptor,source){
+  if(source.kind!==descriptor.kind)return '素材类型不符，需要'+({video:'视频',audio:'音频',image:'图片'}[descriptor.kind]);
+  const required=Math.max(0,...data.clips.filter(clip=>clip.sourceId===descriptor.id).map(clip=>clip.out));
+  if(!Number.isFinite(source.duration)||source.duration+.15<required)return '素材时长不足：需至少 '+fmt(required)+'，当前 '+fmt(source.duration||0);
+  return '';
+}
+function releaseProjectSource(source){
+  try{source.el?.pause();source.node?.disconnect();source.el?.remove();if(source.url?.startsWith('blob:'))URL.revokeObjectURL(source.url);}catch{}
+}
+function linkProjectSource(pending,descriptor,source){
+  const error=projectSourceError(pending.data,descriptor,source);if(error)throw Error(error);
+  pending.loaded.set(descriptor.id,source);pending.errors.delete(descriptor.id);pending.handles.delete(descriptor.id);
+  // An unused replacement belongs only to this dialog, never to undo history.
+  for(const old of [...pending.owned])if(![...pending.loaded.values()].includes(old)){
+    releaseProjectSource(old);pending.owned.splice(pending.owned.indexOf(old),1);
+  }
+}
+async function restoreProjectReference(pending,descriptor,reference){
+  let source;
+  try{
+    const file=await reference.handle.getFile();
+    if(!sameMediaFile(descriptor,file)||(descriptor.lastModified&&descriptor.lastModified!==file.lastModified))throw Error('原文件已修改，请选择替代文件确认');
+    pickedFileReferences.set(file,reference);source=await loadSourceFile(file);
+    linkProjectSource(pending,descriptor,source);pending.owned.push(source);
+  }catch(error){
+    if(source)releaseProjectSource(source);
+    pending.errors.set(descriptor.id,error.name==='NotFoundError'?'原文件已移动或删除，请选择替代文件':['NotAllowedError','SecurityError'].includes(error.name)?'读取权限已失效，请重新选择文件':error.message);
+  }
+}
+async function authorizeProjectSource(id){
+  const pending=projectState.pending,reference=pending?.handles.get(id),descriptor=pending?.data.sources.find(item=>item.id===id);
+  if(!reference||!descriptor||projectState.relinking)return;
+  projectState.relinking=true;S.busy=true;renderProjectLinks();
+  try{
+    // Called directly from a click: permission requests require user activation.
+    const permission=await reference.handle.requestPermission({mode:'read'});
+    pending.handles.delete(id);
+    if(permission==='granted')await restoreProjectReference(pending,descriptor,reference);
+    else pending.errors.set(id,'未获得读取权限，请选择替代文件');
+  }catch(error){pending.handles.delete(id);pending.errors.set(id,'读取失败：'+error.message);}
+  finally{projectState.relinking=false;S.busy=false;renderProjectLinks();refreshHistoryUi();}
 }
 function renderProjectLinks(){
   const pending=projectState.pending;if(!pending)return;const missing=pending.data.sources.filter(source=>!pending.loaded.has(source.id));
-  $('#projectLinks').innerHTML=pending.data.sources.map(source=>'<div class="project-media-row"><span>'+escapeHtml(source.fileName||source.name)+'</span><small>'+ (pending.loaded.has(source.id)?'已关联':'需要原文件')+'</small></div>').join('');
-  $('#projectLoadNote').textContent=missing.length?'还需关联 '+missing.length+' 个素材。按文件名、类型和大小匹配；也可一次选择多个文件。':'素材已全部关联。载入后会替换当前时间线，可用撤销返回。';
+  $('#projectLinks').innerHTML=pending.data.sources.map(source=>{
+    const linked=pending.loaded.get(source.id),error=pending.errors.get(source.id),canAuthorize=pending.handles.has(source.id),disabled=projectState.relinking?' disabled':'';
+    return '<div class="project-media-row"><div class="project-media-info"><span>'+escapeHtml(source.relativePath||source.fileName||source.name)+'</span><small class="'+(error?'project-media-error':'')+'">'+escapeHtml(error?error+(linked?'；保留已关联文件':''):(linked?'已关联：'+(linked.fileName||linked.name):canAuthorize?'需要重新授权读取':'未找到原文件'))+'</small></div><div class="project-media-actions">'+(canAuthorize?'<button class="btn sm" data-project-authorize="'+escapeHtml(source.id)+'"'+disabled+'>授权读取</button>':'')+'<button class="btn sm" data-project-replace="'+escapeHtml(source.id)+'"'+disabled+'>'+(linked?'更换文件':'选择替代')+'</button></div></div>';
+  }).join('');
+  $('#projectLoadNote').textContent=projectState.relinking?'正在读取素材，请稍候…':(pending.notice?pending.notice+' ':'')+(missing.length?'还需关联 '+missing.length+' 个素材。可批量选择原文件，或逐项选择替代文件。':'素材已全部关联。载入后会替换当前时间线，可用撤销返回。');
   $('#btnApplyProject').disabled=Boolean(missing.length)||projectState.relinking;
+  $('#btnProjectRelink').disabled=projectState.relinking;
 }
-async function relinkProjectFiles(files){
+function matchProjectFiles(descriptors,files){
+  const matches=new Map();
+  for(const descriptor of descriptors){
+    const exact=files.filter(file=>sameMediaFile(descriptor,file));
+    if(exact.length===1)matches.set(descriptor.id,exact[0]);
+  }
+  const remaining=descriptors.filter(d=>!matches.has(d.id)),used=new Set(matches.values());
+  for(const descriptor of remaining){
+    const named=files.filter(file=>!used.has(file)&&sameMediaFile(descriptor,file,{exact:false}));
+    if(named.length===1&&remaining.filter(d=>sameMediaFile(d,named[0],{exact:false})).length===1){matches.set(descriptor.id,named[0]);used.add(named[0]);}
+  }
+  const missing=descriptors.filter(d=>!matches.has(d.id)),unused=files.filter(file=>!used.has(file));
+  if(missing.length===1&&unused.length===1&&missing[0].kind===mediaKind(unused[0]))matches.set(missing[0].id,unused[0]);
+  return matches;
+}
+async function relinkProjectFiles(fileList,targetId=''){
   const pending=projectState.pending;if(!pending||projectState.relinking)return;
-  const original={sources:S.sources,clips:S.clips,texts:S.texts,tracks:S.tracks,selected:S.selected,time:S.time,activeTrack:S.activeTrack};
-  projectState.relinking=true;S.busy=true;S.sources=[...S.sources];S.clips=[...S.clips];$('#projectLoadNote').textContent='正在关联素材…';
+  const files=Array.from(fileList||[]);if(!files.length)return;
+  const descriptors=pending.data.sources.filter(d=>targetId?d.id===targetId:!pending.loaded.has(d.id));
+  const matches=targetId&&descriptors.length&&files.length===1?new Map([[targetId,files[0]]]):matchProjectFiles(descriptors,files);
+  pending.notice='';projectState.relinking=true;S.busy=true;renderProjectLinks();
   try{
-    const originalIds=new Set(S.sources.map(source=>source.id));await addFiles(files);
-    const imported=S.sources.filter(source=>!originalIds.has(source.id));pending.owned.push(...imported);
-    for(const descriptor of pending.data.sources){const source=imported.find(item=>item.name===(descriptor.fileName||descriptor.name)&&item.size===descriptor.size&&item.kind===descriptor.kind);if(source)pending.loaded.set(descriptor.id,source);}
+    const imported=new Map();
+    for(const descriptor of descriptors){
+      const file=matches.get(descriptor.id);if(!file)continue;let source;
+      try{
+        if(mediaKind(file)!==descriptor.kind)throw Error('素材类型不符，需要'+({video:'视频',audio:'音频',image:'图片'}[descriptor.kind]));
+        source=imported.get(file)||await loadSourceFile(file);
+        const error=projectSourceError(pending.data,descriptor,source);if(error)throw Error(error);
+        linkProjectSource(pending,descriptor,source);
+        if(!imported.has(file)){imported.set(file,source);pending.owned.push(source);}
+      }catch(error){if(source&&!pending.owned.includes(source))releaseProjectSource(source);pending.errors.set(descriptor.id,error.message);}
+    }
+    if(!matches.size)pending.notice='未找到可自动匹配的文件，请在对应素材旁选择替代。';
   }catch(error){toast('关联失败：'+error.message,true);}
-  finally{Object.assign(S,original);S.busy=false;projectState.relinking=false;renderSources();renderTimeline();renderPanels();updateSummary();seek(S.time);renderProjectLinks();}
+  finally{S.busy=false;projectState.relinking=false;renderProjectLinks();refreshHistoryUi();}
+}
+async function pickProjectMedia(targetId=''){
+  if(!projectState.pending||projectState.relinking)return;
+  projectState.pickerTarget=targetId;
+  const files=await chooseMediaFiles(!targetId);
+  if(files===null){$('#projectMediaFiles').multiple=!targetId;$('#projectMediaFiles').click();}
+  else{projectState.pickerTarget='';await relinkProjectFiles(files,targetId);}
 }
 async function applyProject(){
   const pending=projectState.pending;if(!pending||projectState.relinking)return;
@@ -4930,19 +5112,20 @@ async function applyProject(){
     stopPlayback();commitHistory();const restoredSources=[...new Set(pending.loaded.values())];for(const source of S.sources)if(!restoredSources.includes(source))retiredSources.add(source);for(const source of pending.owned)if(!restoredSources.includes(source))retiredSources.add(source);S.sources=restoredSources;S.clips=clips;S.texts=texts;S.tracks=data.tracks.map(track=>({id:track.id,kind:track.kind,name:String(track.name||track.id).slice(0,80),muted:Boolean(track.muted),hidden:Boolean(track.hidden),locked:Boolean(track.locked)}));
     S.activeTrack=S.tracks.find(track=>track.kind==='visual').id;S.selected=null;S.time=clamp(Number(data.time)||0,0,totalDuration());
     const config=data.settings||{};for(const key of ['format','size','fps','quality','aspect'])if(typeof config[key]==='string')settings[key]=config[key];settings.name=String(config.name||'').slice(0,80);
-    saveSettings();syncForm();$('#projectName').value=settings.name;renderSources();renderTimeline();renderPanels();updateSummary();await seek(S.time);commitHistory();
+    saveSettings();syncForm();$('#projectName').value=settings.name;for(const source of restoredSources)activateSource(source);renderSources();renderTimeline();renderPanels();updateSummary();await seek(S.time);commitHistory();
     pending.applied=true;$('#projectDialog').close();$('#projectRecovery').hidden=true;queueProjectDraft();toast('工程已载入，可撤销返回原来的编辑');
   }catch(error){toast('载入失败：'+error.message,true);}
 }
 function closeProjectDialog(event){
   if(projectState.relinking){event?.preventDefault();toast('正在关联素材，请稍候');return false;}
-  const pending=projectState.pending;if(pending&&!pending.applied)for(const source of pending.owned){try{source.el?.pause();source.el?.remove();if(source.url?.startsWith('blob:'))URL.revokeObjectURL(source.url);}catch{}}
-  projectState.pending=null;return true;
+  const pending=projectState.pending;if(pending&&!pending.applied)for(const source of pending.owned)releaseProjectSource(source);
+  projectState.pending=null;projectState.pickerTarget='';return true;
 }
 $('#btnSaveProject').addEventListener('click',downloadProject);$('#btnOpenProject').addEventListener('click',()=>$('#projectFile').click());
 $('#projectFile').addEventListener('change',async event=>{try{const file=event.target.files?.[0];if(file){if(file.size>100*1024*1024)throw new Error('工程文件超过 100 MB');await prepareProject(JSON.parse(await file.text()));}}catch(error){toast(error.message,true);}finally{event.target.value='';}});
-$('#btnProjectRelink').addEventListener('click',()=>{if(!projectState.relinking)$('#projectMediaFiles').click();});
-$('#projectMediaFiles').addEventListener('change',async event=>{const files=Array.from(event.target.files||[]);event.target.value='';if(files.length)await relinkProjectFiles(files);});
+$('#btnProjectRelink').addEventListener('click',()=>pickProjectMedia());
+$('#projectLinks').addEventListener('click',event=>{const authorize=event.target.closest('[data-project-authorize]'),replace=event.target.closest('[data-project-replace]');if(authorize)authorizeProjectSource(authorize.dataset.projectAuthorize);else if(replace)pickProjectMedia(replace.dataset.projectReplace);});
+$('#projectMediaFiles').addEventListener('change',async event=>{const files=Array.from(event.target.files||[]),targetId=projectState.pickerTarget;event.target.value='';projectState.pickerTarget='';if(files.length)await relinkProjectFiles(files,targetId);});
 $('#btnApplyProject').addEventListener('click',applyProject);$('#btnCloseProject').addEventListener('click',()=>{if(closeProjectDialog())$('#projectDialog').close();});$('#projectDialog').addEventListener('cancel',event=>closeProjectDialog(event));$('#projectDialog').addEventListener('close',()=>closeProjectDialog());
 $('#btnRecoverProject').addEventListener('click',()=>{try{prepareProject(JSON.parse(localStorage.getItem(PROJECT_KEY)));}catch(error){toast('草稿恢复失败：'+error.message,true);}});
 $('#btnDismissRecovery').addEventListener('click',()=>{$('#projectRecovery').hidden=true;});

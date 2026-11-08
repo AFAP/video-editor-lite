@@ -33,13 +33,16 @@ class Element {
   toDataURL() { return 'data:image/png;base64,test'; }
   getBoundingClientRect() { return {left:0,top:0,width:900,height:440}; }
   focus() {} select() {} contains() { return false; }
+  remove() { this.removed=true; } load() {} pause() {}
+  removeEventListener(type,fn) { this.listeners[type]=(this.listeners[type]||[]).filter(item=>item!==fn); }
   showModal() { this.open=true; } close() { this.open=false; }
 }
 
-function editor({storageBlocked = false, tracks = [], page = {}} = {}) {
+function editor({storageBlocked = false, tracks = [], page = {}, browser = {}} = {}) {
   const frames = [];
   const clock = {time:0};
   const requests=[];
+  const blobs=new Map(),revoked=[];
   const elements = new Map(ids.map(id => [id, new Element()]));
   const generic = new Element();
   const document = {
@@ -49,7 +52,15 @@ function editor({storageBlocked = false, tracks = [], page = {}} = {}) {
       if (selector === 'dialog[open]') return null;
       return generic;
     },
-    createElement() { return new Element(); },
+    createElement(tag) {
+      const el=new Element();
+      if(tag==='video'||tag==='audio'){
+        el.readyState=1;el.duration=10;el.videoWidth=1920;el.videoHeight=1080;
+        Object.defineProperty(el,'src',{set(url){this.url=url;const file=blobs.get(url);this.duration=file?.duration??10;this.failure=file?.failure;this.readyState=file?.failure?0:1;},get(){return this.url;}});
+        el.load=()=>{if(el.failure)queueMicrotask(()=>{for(const fn of el.listeners.error||[])fn();});};
+      }
+      return el;
+    },
     addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); },
   };
   const context = vm.createContext({
@@ -58,10 +69,11 @@ function editor({storageBlocked = false, tracks = [], page = {}} = {}) {
     setTimeout:() => 1, clearTimeout() {}, setInterval() {},
     requestAnimationFrame:fn => { frames.push(fn); return frames.length; },
     AbortController, ResizeObserver:class {observe() {}},
+    URL:{createObjectURL(file){const url='blob:test-'+blobs.size;blobs.set(url,file);return url;},revokeObjectURL(url){revoked.push(url);}},
     Image:class {constructor(){this.naturalWidth=256;this.naturalHeight=256;this.complete=true;}async decode(){}},
     fetch:async url => {requests.push(url);return {ok:true,json:async () => ({ok:true,version:'test'})};},
     MediaRecorder:{isTypeSupported:() => true},
-    window:{addEventListener() {},removeEventListener() {}},
+    window:{addEventListener() {},removeEventListener() {},...browser},indexedDB:browser.indexedDB,
   });
   let js = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   js = js.replace(/\}\)\(\);\s*$/, `globalThis.testApi = { S, settings, bridge, history,
@@ -70,11 +82,12 @@ function editor({storageBlocked = false, tracks = [], page = {}} = {}) {
     activeRows, visualRows, totalDuration, addTrack, moveClipTo, mediaForClip, clipVolume, mediaKind,
     parseSrt,serializeSrt,setSpeechDraft,speechState,validateSpeechDraft,applySpeechCaptions,
     buildProject,validateProject,prepareProject,applyProject,projectState,connectPreviousClip,transitionState,
+    relinkProjectFiles,closeProjectDialog,matchProjectFiles,chooseMediaFiles,rememberSourceFile,loadSourceFile,authorizeProjectSource,
     setSelection,selectionEntries,groupSelection,detachAudio,rippleDelete,closeTimelineGaps,isLocked,clipKind,
     animationValue,setAnimationValue,validateAnimation,applyCaptionStyle,openCaptionEditor,detectBridge,openSpeech,
     transitionCuts,transitionItems,insertTransition,removeTransition,selectedTransition,reconcileLinkedTransitions,paintTransitionDemo,
     createFancyText,applyFancyToSelected,applyTextPreset,FANCY_TEXT_PRESETS,FANCY_CATEGORIES,TEXT_PRESETS,createSticker,STICKER_ASSETS,STICKER_CATEGORIES,STICKER_ATLAS_SIZE,drawTextLayer,filterLibraryItems,
-    quiet() { renderSources = renderTimeline = renderPanels = drawAt = updateSummary = refreshHistoryUi = () => {};
+    quiet() { renderSources = renderTimeline = renderPanels = drawAt = updateSummary = refreshHistoryUi = refreshThumb = () => {};
       seek = time => { S.time = clamp(time,0,totalDuration()); };
       stopPlayback = () => { S.playing = false; };
     }
@@ -84,7 +97,7 @@ function editor({storageBlocked = false, tracks = [], page = {}} = {}) {
   api.quiet();
   for(const kind of tracks)api.addTrack(kind);
   api.S.activeTrack='v1';
-  return {api, elements, document, frames, clock, requests};
+  return {api, elements, document, frames, clock, requests,revoked};
 }
 
 function playbackMedia(initialTime) {
@@ -456,6 +469,124 @@ test('project JSON excludes keys and runtime media and restores edits as an undo
   const project=api.buildProject();assert.ok(!JSON.stringify(project).includes('secret'));assert.equal(project.sources[0].el,undefined);assert.equal(api.validateProject(project),project);
   clip.scale=2;api.settings.aspect='source';api.commitHistory();await api.prepareProject(project);await api.applyProject();
   assert.equal(api.S.clips[0].scale,1);assert.equal(api.S.clips[0].transitionIn.type,'wipeleft');assert.equal(api.settings.aspect,'portrait');api.undo();assert.equal(api.S.clips[0].scale,2);assert.equal(api.settings.aspect,'source');
+});
+
+function mediaFile(overrides={}){return {name:'original.mp4',size:4096,type:'video/mp4',lastModified:123,duration:12,...overrides};}
+function savedFileProject(file=mediaFile()){
+  const {api}=editor(),source={id:'saved',kind:api.mediaKind(file),name:file.name,fileName:file.name,size:file.size,duration:file.duration,width:1920,height:1080,lastModified:file.lastModified};
+  api.S.sources.push(source);api.appendClip(source,2,8);
+  return JSON.parse(JSON.stringify(api.buildProject()));
+}
+function referenceDatabase(records=[]){
+  const saved=new Map(records.map(record=>[record.id,record]));
+  return {saved,open(){
+    const request={};queueMicrotask(()=>{
+      request.result={close(){},transaction(){
+        const tx={objectStore(){return {
+          getAll(){return {result:[...saved.values()]};},
+          put(value){saved.set(value.id,value);return {result:value.id};},
+        };}};
+        queueMicrotask(()=>tx.oncomplete?.());return tx;
+      }};request.onsuccess?.();
+    });return request;
+  }};
+}
+
+test('relinking the original file leaves current tracks and history intact until apply, and can be undone',async()=>{
+  const project=savedFileProject(),{api,elements}=editor(),{source}=seed(api);source.kind='video';api.commitHistory();
+  const before={sources:api.S.sources,clips:api.S.clips,tracks:api.S.tracks,selected:api.S.selected,history:api.history.entries.length};
+  await api.prepareProject(project);assert.equal(elements.get('btnApplyProject').disabled,true);
+  await api.relinkProjectFiles([mediaFile()]);assert.equal(elements.get('btnApplyProject').disabled,false);
+  assert.equal(api.S.sources,before.sources);assert.equal(api.S.clips,before.clips);assert.equal(api.S.tracks,before.tracks);assert.equal(api.S.selected,before.selected);assert.equal(api.history.entries.length,before.history);
+  assert.equal(api.projectState.pending.loaded.size,1);await api.applyProject();
+  assert.equal(api.S.sources[0].name,'original.mp4');assert.equal(api.S.clips[0].in,2);assert.equal(api.S.clips[0].out,8);
+  api.undo();assert.equal(api.S.sources[0],source);
+});
+
+test('file matching accepts Unicode-normalized names and unique renamed or resized replacements without guessing ambiguous pairs',()=>{
+  const {api}=editor(),descriptors=[{id:'one',name:'Café.mp4',kind:'video',size:4}];
+  const normalized=mediaFile({name:'CAFE\u0301.MP4',size:4});assert.equal(api.matchProjectFiles(descriptors,[normalized]).get('one'),normalized);
+  const resized=mediaFile({name:'Café.mp4',size:8});assert.equal(api.matchProjectFiles(descriptors,[resized]).get('one'),resized);
+  const renamed=mediaFile({name:'replacement.mp4',size:8});assert.equal(api.matchProjectFiles(descriptors,[renamed]).get('one'),renamed);
+  const other={id:'two',name:'different.mp4',kind:'video',size:6};
+  assert.equal(api.matchProjectFiles([...descriptors,other],[renamed,mediaFile({name:'other.mp4'})]).size,0);
+  assert.equal(api.matchProjectFiles([...descriptors,{...descriptors[0],id:'two',size:6}],[resized]).size,0);
+});
+
+test('a row can explicitly replace a renamed file; wrong types and short files show actionable errors',async()=>{
+  const {api,elements}=editor();await api.prepareProject(savedFileProject());
+  await api.relinkProjectFiles([mediaFile({name:'new.wav',type:'audio/wav'})],'saved');
+  assert.match(api.projectState.pending.errors.get('saved'),/类型不符/);assert.equal(elements.get('btnApplyProject').disabled,true);
+  await api.relinkProjectFiles([mediaFile({name:'short.mp4',duration:4})],'saved');
+  assert.match(api.projectState.pending.errors.get('saved'),/时长不足/);assert.equal(elements.get('btnApplyProject').disabled,true);
+  await api.relinkProjectFiles([mediaFile({name:'renamed.mp4',size:9000})],'saved');
+  assert.equal(api.projectState.pending.errors.size,0);assert.equal(elements.get('btnApplyProject').disabled,false);
+  await api.applyProject();assert.equal(api.S.sources[0].fileName,'renamed.mp4');
+  assert.equal(api.buildProject().sources[0].fileName,'renamed.mp4');
+});
+
+test('failed decoding and cancelling relink release new media without changing or releasing the active project',async()=>{
+  const {api,revoked,elements}=editor(),{source}=seed(api);source.kind='video';
+  await api.prepareProject(savedFileProject());await api.relinkProjectFiles([mediaFile({failure:true})]);
+  assert.match(api.projectState.pending.errors.get('saved'),/打不开/);assert.equal(api.S.sources[0],source);
+  assert.equal(elements.get('btnApplyProject').disabled,true);assert.equal(api.S.busy,false);
+  await api.relinkProjectFiles([mediaFile()]);const linked=api.projectState.pending.loaded.get('saved');
+  api.closeProjectDialog();assert.equal(linked.el.removed,true);assert.ok(revoked.includes(linked.url));assert.ok(!revoked.includes(source.url));
+  assert.equal(api.S.sources[0],source);assert.equal(api.projectState.pending,null);
+});
+
+test('batch relink restores mixed media without adding default tracks or skipping unmatched rows',async()=>{
+  const project=savedFileProject(),audio=mediaFile({name:'music.wav',type:'audio/wav',size:800});
+  const image=mediaFile({name:'cover.png',type:'image/png',size:500});
+  project.sources.push({id:'music',name:audio.name,kind:'audio',size:audio.size,duration:12});
+  project.sources.push({id:'cover',name:image.name,kind:'image',size:image.size,duration:86400});project.clips.push({id:'image',sourceId:'cover',trackId:'v1',start:6,in:0,out:5});
+  project.tracks.push({id:'a1',name:'音频1',kind:'audio'});project.clips.push({id:'audio',sourceId:'music',trackId:'a1',start:0,in:0,out:6});
+  const {api,elements}=editor();await api.prepareProject(project);
+  await api.relinkProjectFiles([mediaFile()]);assert.equal(api.projectState.pending.loaded.size,1);assert.equal(elements.get('btnApplyProject').disabled,true);
+  await api.relinkProjectFiles([audio,image]);assert.equal(api.S.tracks.length,1);assert.equal(api.S.clips.length,0);
+  await api.applyProject();assert.equal(api.S.tracks.length,2);assert.equal(api.S.clips.length,3);assert.equal(api.S.clips[2].trackId,'a1');assert.equal(api.S.sources.find(s=>s.kind==='image').fileName,'cover.png');
+});
+
+test('authorized file references survive a browser session and restore a saved project automatically',async()=>{
+  const file=mediaFile(),db=referenceDatabase(),handle={async getFile(){return file;},async queryPermission(){return 'granted';}};
+  const first=editor({browser:{indexedDB:db,showOpenFilePicker:async()=>[handle]}}),files=await first.api.chooseMediaFiles();
+  const source=await first.api.loadSourceFile(files[0]);first.api.S.sources.push(source);first.api.appendClip(source,2,8);
+  const project=JSON.parse(JSON.stringify(first.api.buildProject()));assert.ok(project.sources[0].fileHandleId);assert.equal(project.sources[0].lastModified,file.lastModified);
+  assert.ok(!JSON.stringify(project).includes('handle"'));assert.equal(db.saved.size,1);
+  const next=editor({browser:{indexedDB:db}});await next.api.prepareProject(project);
+  assert.equal(next.api.projectState.pending.loaded.size,1);assert.equal(next.elements.get('btnApplyProject').disabled,false);
+  await next.api.applyProject();assert.equal(next.api.S.sources[0].fileName,file.name);
+});
+
+test('permission prompts wait for an explicit click; denied or missing files allow manual replacement',async()=>{
+  const file=mediaFile(),project=savedFileProject(),record={id:'remembered',name:file.name,size:file.size,kind:'video',lastModified:file.lastModified};
+  project.sources[0].fileHandleId=record.id;
+  let requested=0,permission='prompt';record.handle={async getFile(){return file;},async queryPermission(){return permission;},async requestPermission(){requested++;return 'granted';}};
+  const {api,elements}=editor({browser:{indexedDB:referenceDatabase([record])}});
+  await api.prepareProject(project);assert.equal(requested,0);assert.equal(api.projectState.pending.handles.size,1);assert.equal(elements.get('btnApplyProject').disabled,true);
+  await api.authorizeProjectSource('saved');assert.equal(requested,1);assert.equal(api.projectState.pending.loaded.size,1);
+  api.closeProjectDialog();permission='denied';await api.prepareProject(project);assert.equal(requested,1);assert.match(api.projectState.pending.errors.get('saved'),/授权已失效/);
+  await api.relinkProjectFiles([mediaFile({name:'moved.mp4'})],'saved');assert.equal(elements.get('btnApplyProject').disabled,false);
+  api.closeProjectDialog();permission='granted';record.handle.getFile=async()=>{throw Object.assign(Error('not found'),{name:'NotFoundError'});};
+  await api.prepareProject(project);assert.match(api.projectState.pending.errors.get('saved'),/已移动或删除/);assert.equal(elements.get('btnApplyProject').disabled,true);
+});
+
+test('changed files require manual confirmation and blocked handle storage never blocks ordinary relinking',async()=>{
+  const file=mediaFile(),project=savedFileProject(),record={id:'changed',name:file.name,size:file.size,kind:'video',handle:{async queryPermission(){return 'granted';},async getFile(){return {...file,lastModified:456};}}};
+  project.sources[0].fileHandleId=record.id;
+  const {api}=editor({browser:{indexedDB:referenceDatabase([record])}});await api.prepareProject(project);
+  assert.equal(api.projectState.pending.loaded.size,0);assert.match(api.projectState.pending.errors.get('saved'),/已修改/);
+  const blocked=editor({browser:{indexedDB:{open(){throw Error('blocked');}}}});await blocked.api.prepareProject(project);
+  await blocked.api.relinkProjectFiles([file]);assert.equal(blocked.api.projectState.pending.loaded.size,1);
+});
+
+test('old projects can reuse a unique authorized reference, but duplicate remembered names require a choice',async()=>{
+  const file=mediaFile(),project=savedFileProject(),record={id:'legacy',name:file.name,size:file.size,kind:'video',lastModified:file.lastModified,handle:{async queryPermission(){return 'granted';},async getFile(){return file;}}};
+  const {api}=editor({browser:{indexedDB:referenceDatabase([record])}});await api.prepareProject(project);assert.equal(api.projectState.pending.loaded.size,1);
+  const ambiguous=editor({browser:{indexedDB:referenceDatabase([record,{...record,id:'duplicate'}])}});await ambiguous.api.prepareProject(project);assert.equal(ambiguous.api.projectState.pending.loaded.size,0);
+  assert.equal(await editor().api.chooseMediaFiles(),null);
+  const cancelled=editor({browser:{showOpenFilePicker:async()=>{throw Object.assign(Error('cancelled'),{name:'AbortError'});}}});
+  assert.equal((await cancelled.api.chooseMediaFiles()).length,0);assert.equal(cancelled.api.S.sources.length,0);
 });
 
 test('transition assets become selectable boundary items and replacement/removal are undoable',()=>{
