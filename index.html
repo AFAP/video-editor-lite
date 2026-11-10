@@ -2058,7 +2058,13 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
           <label>入点<input type="number" id="cpIn" min="0" step="0.01"></label>
           <label>出点<input type="number" id="cpOut" min="0.1" step="0.01"></label>
         </div><div class="note" id="clipDuration"></div></details>
-        <details open id="transitionControls"><summary>片头 / 片尾效果</summary><div class="fld"><span>入场</span><select id="clipTransitionIn" aria-label="画面入场转场"><option value="none">无</option><option value="fade">叠化 / 淡入淡出</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>出场</span><select id="clipTransitionOut" aria-label="画面出场转场"><option value="none">无</option><option value="fade">叠化 / 淡入淡出</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>秒数</span><input id="clipTransitionDuration" type="number" min="0.01" max="5" step="0.1" value="0.5" aria-label="转场时长"></div><button class="btn sm" id="btnOpenTransitions">打开转场素材库</button><button class="btn sm" id="btnConnectTransition">与前一片段衔接</button><p class="note">衔接会移动当前片段，与前段重叠；其他轨道不移动。可以撤销。</p></details><details open id="visualControls"><summary>画面变换</summary><div class="fld"><span>不透明</span><input type="range" id="cpOpacity" min="0" max="100" step="1" aria-label="画面不透明度"><b class="val" id="cpOpacityVal">100%</b></div>
+        <details id="colorKeyControls"><summary>去背景 / 色度抠像</summary>
+        <div class="fld"><span>背景</span><select id="cpKeyMode" aria-label="去背景模式"><option value="none">关闭</option><option value="green">绿幕</option><option value="black">黑底</option><option value="custom">自选颜色</option></select></div>
+        <div id="colorKeyOptions" hidden><div class="fld"><span>去除颜色</span><input type="color" id="cpKeyColor" value="#00ff00" aria-label="去除的背景颜色"></div>
+        <div class="fld"><span>容差</span><input type="range" id="cpKeySimilarity" min="1" max="100" value="30" aria-label="去背景容差"><b class="val" id="cpKeySimilarityVal">30%</b></div>
+        <div class="fld"><span>柔边</span><input type="range" id="cpKeyBlend" min="0" max="100" value="8" aria-label="去背景边缘柔化"><b class="val" id="cpKeyBlendVal">8%</b></div></div>
+        <button class="btn sm" id="btnOverlayAtPlayhead">叠加到播放头</button><p class="note" id="colorKeyNote">把播放头放到底片要叠加的位置，点击按钮将本片段移到上层。去掉的颜色会显示下方画面。</p>
+        </details><details open id="transitionControls"><summary>片头 / 片尾效果</summary><div class="fld"><span>入场</span><select id="clipTransitionIn" aria-label="画面入场转场"><option value="none">无</option><option value="fade">叠化 / 淡入淡出</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>出场</span><select id="clipTransitionOut" aria-label="画面出场转场"><option value="none">无</option><option value="fade">叠化 / 淡入淡出</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>秒数</span><input id="clipTransitionDuration" type="number" min="0.01" max="5" step="0.1" value="0.5" aria-label="转场时长"></div><button class="btn sm" id="btnOpenTransitions">打开转场素材库</button><button class="btn sm" id="btnConnectTransition">与前一片段衔接</button><p class="note">衔接会移动当前片段，与前段重叠；其他轨道不移动。可以撤销。</p></details><details open id="visualControls"><summary>画面变换</summary><div class="fld"><span>不透明</span><input type="range" id="cpOpacity" min="0" max="100" step="1" aria-label="画面不透明度"><b class="val" id="cpOpacityVal">100%</b></div>
         <div class="fld"><span>缩放</span><input type="range" id="cpScale" min="10" max="300" step="1"><b class="val" id="cpScaleVal">100%</b></div>
         <div class="fld"><span>水平</span><input type="range" id="cpOx" min="-50" max="50" step="1"><b class="val" id="cpOxVal">0%</b></div>
         <div class="fld"><span>垂直</span><input type="range" id="cpOy" min="-50" max="50" step="1"><b class="val" id="cpOyVal">0%</b></div>
@@ -3025,6 +3031,65 @@ function activeTexts(time) {
     .sort((a,b)=>order.indexOf(b.trackId||'t1')-order.indexOf(a.trackId||'t1'));
 }
 
+/* The browser and FFmpeg use the same normalized RGB-distance mask. */
+function normalizeColorKey(value) {
+  if(value==null)return undefined;
+  if(typeof value!=='object'||Array.isArray(value))throw Error('去背景参数无效');
+  const mode=value.mode??'custom',presets={green:'#00ff00',black:'#000000'};
+  if(!['green','black','custom'].includes(mode))throw Error('去背景模式无效');
+  const color=value.color??presets[mode];
+  if(typeof color!=='string'||!/^#[a-f0-9]{6}$/i.test(color))throw Error('去背景颜色无效');
+  const similarity=value.similarity??(mode==='black'?.1:.3),blend=value.blend??.08;
+  if(!Number.isFinite(similarity)||similarity<.01||similarity>1||!Number.isFinite(blend)||blend<0||blend>1)throw Error('去背景容差或柔边无效');
+  return {mode,color:presets[mode]||color.toLowerCase(),similarity,blend};
+}
+function keyPixels(pixels,key){
+  const [r,g,b]=key.color.slice(1).match(/../g).map(hex=>parseInt(hex,16));
+  const inner=key.similarity**2*195075,outer=(key.similarity+key.blend)**2*195075;
+  for(let i=0;i<pixels.length;i+=4){
+    const distance=(pixels[i]-r)**2+(pixels[i+1]-g)**2+(pixels[i+2]-b)**2;
+    if(distance<=inner)pixels[i+3]=0;
+    else if(key.blend&&distance<outer)pixels[i+3]=Math.floor(pixels[i+3]*(Math.sqrt(distance/195075)-key.similarity)/key.blend);
+  }
+  return pixels;
+}
+let colorKeyGpu,colorKeyCpu;
+function createColorKeyGpu(){
+  const canvas=document.createElement('canvas'),gl=canvas.getContext('webgl',{alpha:true,premultipliedAlpha:false,preserveDrawingBuffer:true});
+  if(!gl)throw Error('WebGL unavailable');
+  const shader=(type,code)=>{const s=gl.createShader(type);gl.shaderSource(s,code);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error('Key shader failed');return s;};
+  const vertex=shader(gl.VERTEX_SHADER,'attribute vec2 position;varying vec2 uv;void main(){uv=position*.5+.5;gl_Position=vec4(position,0.,1.);}');
+  const fragment=shader(gl.FRAGMENT_SHADER,'precision highp float;varying vec2 uv;uniform sampler2D frame;uniform vec3 key;uniform float similarity;uniform float blend;void main(){vec4 c=texture2D(frame,uv);float d=distance(c.rgb,key)/sqrt(3.);float a=blend>0.?clamp((d-similarity)/blend,0.,1.):(d>similarity?1.:0.);gl_FragColor=vec4(c.rgb,c.a*a);}');
+  const program=gl.createProgram();gl.attachShader(program,vertex);gl.attachShader(program,fragment);gl.linkProgram(program);
+  if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error('Key program failed');
+  gl.useProgram(program);const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  const position=gl.getAttribLocation(program,'position');gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
+  const texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.uniform1i(gl.getUniformLocation(program,'frame'),0);
+  const uniforms=Object.fromEntries(['key','similarity','blend'].map(name=>[name,gl.getUniformLocation(program,name)]));
+  return {canvas,draw(frame,key,w,h){
+    const limit=gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    if(gl.isContextLost()||Math.max(w,frame.videoWidth||frame.naturalWidth||frame.width)>limit||Math.max(h,frame.videoHeight||frame.naturalHeight||frame.height)>limit)throw Error('Key context unavailable');
+    if(canvas.width!==w)canvas.width=w;if(canvas.height!==h)canvas.height=h;
+    gl.viewport(0,0,w,h);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,frame);
+    gl.uniform3fv(uniforms.key,key.color.slice(1).match(/../g).map(hex=>parseInt(hex,16)/255));gl.uniform1f(uniforms.similarity,key.similarity);gl.uniform1f(uniforms.blend,key.blend);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);return canvas;
+  }};
+}
+function keyedFrame(frame,key,w,h){
+  if(colorKeyGpu===undefined){try{colorKeyGpu=createColorKeyGpu();}catch{colorKeyGpu=null;}}
+  if(colorKeyGpu){try{return colorKeyGpu.draw(frame,key,w,h);}catch{colorKeyGpu=null;}}
+  if(!colorKeyCpu){const canvas=document.createElement('canvas');colorKeyCpu={canvas,g:canvas.getContext('2d',{willReadFrequently:true})};}
+  const {canvas,g}=colorKeyCpu;if(canvas.width!==w)canvas.width=w;if(canvas.height!==h)canvas.height=h;
+  g.clearRect(0,0,w,h);g.drawImage(frame,0,0,w,h);const image=g.getImageData(0,0,w,h);keyPixels(image.data,key);g.putImageData(image,0,0);return canvas;
+}
+function drawKeyedImage(g,frame,clip,x,y,dw,dh,iw,ih){
+  if(!clip.colorKey){g.drawImage(frame,x,y,dw,dh);return;}
+  const ratio=Math.min(1,dw/iw,dh/ih),w=Math.max(1,Math.round(iw*ratio)),h=Math.max(1,Math.round(ih*ratio));
+  g.drawImage(keyedFrame(frame,clip.colorKey,w,h),x,y,dw,dh);
+}
 function drawSourceFrame(g, source, clip, W, H) {
   if (!source) return;
   const scale = Number(clip && clip.scale) || 1;
@@ -3037,7 +3102,7 @@ function drawSourceFrame(g, source, clip, W, H) {
     const k = Math.min(W / iw, H / ih) * scale;
     const dw = iw * k;
     const dh = ih * k;
-    try { g.drawImage(img, (W - dw) / 2 + ox * W, (H - dh) / 2 + oy * H, dw, dh); } catch { /* 忽略 */ }
+    try { drawKeyedImage(g,img,clip,(W-dw)/2+ox*W,(H-dh)/2+oy*H,dw,dh,iw,ih); } catch { /* Frame not available yet. */ }
     return;
   }
   const v = mediaForClip(clip)?.el;
@@ -3045,7 +3110,7 @@ function drawSourceFrame(g, source, clip, W, H) {
   const k = Math.min(W / v.videoWidth, H / v.videoHeight) * scale;
   const dw = v.videoWidth * k;
   const dh = v.videoHeight * k;
-  try { g.drawImage(v, (W - dw) / 2 + ox * W, (H - dh) / 2 + oy * H, dw, dh); } catch { /* 忽略 */ }
+  try { drawKeyedImage(g,v,clip,(W-dw)/2+ox*W,(H-dh)/2+oy*H,dw,dh,v.videoWidth,v.videoHeight); } catch { /* Frame not available yet. */ }
 }
 
 function drawComposition(g,time,w,h) {
@@ -3867,7 +3932,10 @@ async function startExport() {
     const src = sourceOfId(c.sourceId);
     return src && src.bridgeId;
   });
-  if (allRemote) return startBridgeExport();
+  if(allRemote){
+    if(S.clips.some(c=>trackEnabled(c.trackId)&&!c.audioOnly&&c.colorKey)&&!bridge.info?.capabilities?.colorKey)return toast('请重启本机 FFmpeg 桥接器，再刷新页面以启用去背景导出',true);
+    return startBridgeExport();
+  }
   return startRecorderExport();
 }
 
@@ -3917,7 +3985,7 @@ async function startBridgeExport() {
         clips: S.clips.filter(c=>trackEnabled(c.trackId)).map((c) => {
           const src = sourceOfId(c.sourceId);
           return {
-            kind:c.audioOnly?'audio':src.kind,keyframes:c.keyframes, start:c.start, layer:S.tracks.filter(t=>t.kind==='visual').length-S.tracks.filter(t=>t.kind==='visual').findIndex(t=>t.id===c.trackId), opacity:Number(c.opacity??1),
+            kind:c.audioOnly?'audio':src.kind,keyframes:c.keyframes,colorKey:c.audioOnly?undefined:c.colorKey, start:c.start, layer:S.tracks.filter(t=>t.kind==='visual').length-S.tracks.filter(t=>t.kind==='visual').findIndex(t=>t.id===c.trackId), opacity:Number(c.opacity??1),
             id: src.bridgeId,
             in: c.in,
             out: c.out,
@@ -4312,6 +4380,45 @@ function refreshTrackInspector(clip,text,source) {
 $('#cpTrack').addEventListener('change',()=>{const clip=selectedClip();if(!clip)return;stopPlayback();moveClipTo(clip,clip.start,$('#cpTrack').value);renderTimeline();seek(S.time);});
 $('#cpAt').addEventListener('input',()=>{const clip=selectedClip();if(!clip)return;stopPlayback();moveClipTo(clip,Number($('#cpAt').value)||0,clip.trackId);renderTimeline();updateSummary();seek(S.time);});
 $('#cpOpacity').addEventListener('input',()=>{const clip=selectedClip();if(!clip)return;setAnimationValue(clip,'opacity',Number($('#cpOpacity').value)/100);$('#cpOpacityVal').textContent=$('#cpOpacity').value+'%';drawAt(S.time);});
+function syncColorKeyInspector(clip){
+  const visual=clip&&clipKind(clip)==='visual';$('#colorKeyControls').hidden=!visual;if(!visual)return;
+  if($('#colorKeyControls').dataset.clip!==clip.id){$('#colorKeyControls').dataset.clip=clip.id;$('#colorKeyControls').open=Boolean(clip.colorKey);}
+  const key=clip.colorKey;$('#cpKeyMode').value=key?.mode||'none';$('#colorKeyOptions').hidden=!key;
+  if(key){
+    for(const [id,value]of [['cpKeyColor',key.color],['cpKeySimilarity',Math.round(key.similarity*100)],['cpKeyBlend',Math.round(key.blend*100)]])if(document.activeElement!==$('#'+id))$('#'+id).value=value;
+    $('#cpKeySimilarityVal').textContent=Math.round(key.similarity*100)+'%';$('#cpKeyBlendVal').textContent=Math.round(key.blend*100)+'%';
+  }
+  $('#colorKeyNote').textContent=key?.mode==='black'?'黑底去除也会影响主体中的黑色区域，可降低容差。把播放头放到底片要叠加的位置，再点上方按钮。':'去掉的颜色会显示下方画面。把播放头放到底片要叠加的位置，再点击按钮移到上层；容差越大，去除的相近颜色越多。';
+}
+function setClipColorKey(mode){
+  const clip=selectedClip();if(!clip||clipKind(clip)!=='visual'||isLocked(clip)||S.rendering||S.busy)return;
+  commitHistory();
+  if(mode==='none')delete clip.colorKey;
+  else{clip.colorKey=normalizeColorKey(mode==='custom'?{...clip.colorKey,mode,color:clip.colorKey?.color||'#00ff00'}:{mode});$('#colorKeyControls').open=true;}
+  syncColorKeyInspector(clip);drawAt(S.time);commitHistory();
+}
+$('#cpKeyMode').addEventListener('change',()=>setClipColorKey($('#cpKeyMode').value));
+for(const [id,property]of [['cpKeyColor','color'],['cpKeySimilarity','similarity'],['cpKeyBlend','blend']]){
+  $('#'+id).addEventListener('input',()=>{
+    const clip=selectedClip();if(!clip?.colorKey||isLocked(clip)||S.rendering||S.busy)return;
+    clip.colorKey=normalizeColorKey({...clip.colorKey,[property]:property==='color'?$('#'+id).value:Number($('#'+id).value)/100,...(property==='color'?{mode:'custom'}:{})});
+    syncColorKeyInspector(clip);drawAt(S.time);
+  });
+  $('#'+id).addEventListener('change',()=>commitHistory());
+}
+function overlayAtPlayhead(){
+  const clip=selectedClip();if(!clip||clipKind(clip)!=='visual'||S.rendering||S.busy)return;
+  const entries=groupedEntries({type:'clip',id:clip.id}),delta=S.time-clip.start;
+  if(entries.some(entry=>isLocked(entryItem(entry))))return toast('分组内有锁定片段，请先解锁');
+  if(entries.some(entry=>entryItem(entry).start+delta<0))return toast('分组会移到零点之前，请后移播放头或先取消分组');
+  stopPlayback();commitHistory();let track=S.tracks.find(t=>t.kind==='visual');
+  if(track.id===clip.trackId||track.locked||track.hidden||S.clips.some(c=>c.id!==clip.id&&c.trackId===track.id&&c.start<S.time+clip.out-clip.in&&c.start+c.out-c.in>S.time)){
+    addTrack('visual',{history:false});track=trackOf(S.activeTrack);
+  }
+  for(const entry of entries){const item=entryItem(entry);item.start+=delta;if(entry.type==='text')item.end+=delta;}
+  clip.trackId=track.id;S.activeTrack=track.id;setSelection([{type:'clip',id:clip.id}]);finishEdit();revealTrack(track.id);toast('已移到上方画面轨，并对齐播放头；可撤销');
+}
+$('#btnOverlayAtPlayhead').addEventListener('click',overlayAtPlayhead);
 $('#txTrack').addEventListener('change',()=>{const text=selectedText();if(!text)return;if(trackOf($('#txTrack').value)?.locked)return toast('目标轨道已锁定');text.trackId=$('#txTrack').value;renderTimeline();drawAt(S.time);});
 /* AI speech: cloud calls are explicit; drafts never alter the timeline automatically. */
 const speechState={busy:false,jobId:'',config:null,segments:[],revision:0,context:null,tts:null,rewrite:null,appliedTts:null};
@@ -4920,7 +5027,7 @@ $('#btnDownloadStickerMap').addEventListener('click',()=>{const blob=new Blob([J
 /* Project files store edit decisions and media references, never API credentials. */
 const projectState={booting:true,pending:null,relinking:false,timer:0,pickerTarget:''};
 const PROJECT_KEY='vc.project.draft.v1';
-const CLIP_KEYS=['audioOnly','audioDetached','groupId','keyframes','start','in','out','scale','ox','oy','opacity','volume','muted','fadeIn','fadeOut','transitionIn','transitionOut'];
+const CLIP_KEYS=['audioOnly','audioDetached','groupId','keyframes','colorKey','start','in','out','scale','ox','oy','opacity','volume','muted','fadeIn','fadeOut','transitionIn','transitionOut'];
 const TEXT_KEYS=[...TEXT_DECOR_KEYS,'start','end','content','x','y','size','color','bold','bg','bgColor','bgAlpha','stroke','strokeColor','strokeWidth','shadow','spacing','caption','groupId'];
 function buildProject({draft=false}={}){
   const sources=S.sources.map(source=>({id:source.id,name:source.name,fileName:source.fileName||source.name,kind:source.kind,size:source.size,duration:source.duration,width:source.width,height:source.height,
@@ -4946,7 +5053,7 @@ function validateProject(data){
   }
   const finite=(value,min,max)=>Number.isFinite(value)&&value>=min&&value<=max;
   for(const clip of data.clips){const source=sources.get(clip.sourceId),track=tracks.get(clip.trackId);if(!source||!track||track.kind!==(clip.audioOnly||source.kind==='audio'?'audio':'visual')||ids.has(clip.id)||!finite(clip.start,0,864000)||!finite(clip.in,0,864000)||!finite(clip.out,0,864000)||clip.out<=clip.in)throw new Error('工程片段引用或区间无效');ids.add(clip.id);
-    validateAnimation(clip.keyframes);if(clip.audioOnly!==undefined&&typeof clip.audioOnly!=='boolean')throw Error('独立音频标记无效');if(clip.groupId!==undefined&&(typeof clip.groupId!=='string'||clip.groupId.length>100))throw Error('片段分组无效');if(clip.audioOnly&&source.kind!=='video'&&source.kind!=='audio')throw Error('独立音频素材无效');
+    validateAnimation(clip.keyframes);normalizeColorKey(clip.colorKey);if(clip.colorKey&&track.kind==='audio')throw Error('音频片段不能去背景');if(clip.audioOnly!==undefined&&typeof clip.audioOnly!=='boolean')throw Error('独立音频标记无效');if(clip.groupId!==undefined&&(typeof clip.groupId!=='string'||clip.groupId.length>100))throw Error('片段分组无效');if(clip.audioOnly&&source.kind!=='video'&&source.kind!=='audio')throw Error('独立音频素材无效');
     for(const key of ['scale','ox','oy','opacity','volume','fadeIn','fadeOut'])if(clip[key]!==undefined&&!finite(clip[key],-10,100))throw new Error('工程片段参数无效');
     for(const key of ['transitionIn','transitionOut'])if(clip[key]){const fx=clip[key];if(!TRANSITION_TYPES.includes(fx.type)||!finite(fx.duration,0,864000))throw new Error('工程转场参数无效');if(fx.fromId){const from=data.clips.find(other=>other.id===fx.fromId);if(key!=='transitionIn'||!from||from.trackId!==clip.trackId||from.id===clip.id)throw new Error('工程转场引用无效');}}
   }
@@ -5104,6 +5211,7 @@ async function applyProject(){
     const data=pending.data;if(data.sources.some(source=>!pending.loaded.has(source.id)))throw new Error('请先关联全部素材');
     const clips=data.clips.map(input=>{const source=pending.loaded.get(input.sourceId);if(input.out>source.duration+.15)throw new Error('素材时长与工程不符：'+source.name);
       const fields=Object.fromEntries(CLIP_KEYS.filter(key=>input[key]!==undefined).map(key=>[key,structuredClone(input[key])]));
+      if(fields.colorKey)fields.colorKey=normalizeColorKey(fields.colorKey);
       return {...fields,id:'c'+(++S.seq),sourceId:source.id,trackId:input.trackId,out:Math.min(input.out,source.duration)};});
     const clipIds=new Map(data.clips.map((clip,index)=>[clip.id,clips[index].id]));for(const clip of clips)if(clip.transitionIn?.fromId)clip.transitionIn.fromId=clipIds.get(clip.transitionIn.fromId);
     const texts=data.texts.map(input=>({...Object.fromEntries(TEXT_KEYS.filter(key=>input[key]!==undefined).map(key=>[key,structuredClone(input[key])])),id:'t'+(++S.seq),trackId:input.trackId}));
@@ -5245,7 +5353,7 @@ function detachAudio(){
   stopPlayback();commitHistory();let track=S.tracks.find(t=>t.kind==='audio'&&!t.locked);
   if(!track){addTrack('audio',{history:false});track=trackOf(S.activeTrack);}
   const group=clip.groupId||nextGroupId(),audio={...structuredClone(clip),id:'c'+(++S.seq),trackId:track.id,audioOnly:true,muted:clip.audioDetached?false:clip.muted,groupId:group};
-  delete audio.transitionIn;delete audio.transitionOut;delete audio.audioDetached;
+  delete audio.transitionIn;delete audio.transitionOut;delete audio.audioDetached;delete audio.colorKey;
   if(audio.keyframes)for(const key of Object.keys(audio.keyframes))if(key!=='volume')delete audio.keyframes[key];
   clip.muted=true;clip.audioDetached=true;clip.groupId=group;S.clips.push(audio);setSelection([{type:'clip',id:clip.id},{type:'clip',id:audio.id}]);S.activeTrack=track.id;
   finishEdit();toast('原视频已静音，原声加入独立音轨；两段已分组');
@@ -5309,6 +5417,7 @@ function drawTimelineWaveforms(){
 }
 function refreshEssentials(){
   const entries=selectionEntries(),clip=selectedClip(),source=clip&&sourceOfId(clip.sourceId);
+  syncColorKeyInspector(clip);
   $('#multiPanel').hidden=entries.length<2;$('#multiCount').textContent=entries.length+' 项已选择';
   $('#btnDetachAudio').disabled=!clip||source?.kind!=='video'||clip.audioOnly||isLocked(clip);
   $('#btnRippleDelete').disabled=!editableEntries().length||S.rendering;$('#btnGroup').disabled=entries.length<2||S.rendering;

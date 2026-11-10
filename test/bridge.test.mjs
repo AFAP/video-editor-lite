@@ -36,6 +36,7 @@ test('real FFmpeg: legacy concat, multitrack composition, audio-only and text-on
       await delay(100);
     }
     assert.ok(available,logs);
+    assert.equal((await(await fetch(base+'/ping')).json()).capabilities.colorKey,true);
     const page = await fetch(base+'/index.html');assert.equal(page.status,200);assert.match(page.headers.get('content-type'),/text\/html/);
     const pageHtml=await page.text();assert.equal(pageHtml,await readFile(new URL('../index.html',import.meta.url),'utf8'));assert.equal(await (await fetch(base+'/')).text(),pageHtml);
     assert.match(pageHtml,/rel="icon"[^>]*data:image\/svg\+xml/);
@@ -48,6 +49,8 @@ test('real FFmpeg: legacy concat, multitrack composition, audio-only and text-on
     assert.ok(waveform.ok);assert.equal(waveform.peaks.length,4096);assert.ok(waveform.peaks.some(value=>value>.01));
     const invalidAnimation = await fetch(base+'/render',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({timeline:true,clips:[{id:video.id,in:0,out:1,keyframes:{scale:[{time:0,value:'unsafe'}]}}]})});
     assert.equal(invalidAnimation.status,400);assert.match((await invalidAnimation.json()).error,/关键帧/);
+    const invalidKey=await fetch(base+'/render',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({timeline:true,clips:[{id:video.id,in:0,out:1,colorKey:{color:"#00ff00';movie=private"}}]})});
+    assert.equal(invalidKey.status,400);assert.match((await invalidKey.json()).error,/去背景颜色/);
     const image = await post('/overlay',await readFile(join(temp,'background.png')),{'content-type':'image/png'});
     const overlay = await post('/overlay',await readFile(join(temp,'overlay.png')),{'content-type':'image/png'});
     assert.ok(video.hasAudio); assert.equal(video.width,320);
@@ -113,6 +116,16 @@ test('real FFmpeg: legacy concat, multitrack composition, audio-only and text-on
     assert.ok(rms(.1)<.002,'audio must not start before its timeline offset');
     assert.ok(rms(.75)>.06,'two independent audio clips must be mixed without averaging their volume');
     assert.ok(rms(2.5)<.002,'muted audio must remain silent');
+
+    const keyed=await post('/render',JSON.stringify({timeline:true,duration:.5,width:320,height:180,fps:24,quality:'low',clips:[
+      {id:image.id,kind:'image',in:0,out:.5,start:0,layer:0},
+      {id:overlay.id,kind:'image',in:0,out:.5,start:0,layer:1,colorKey:{color:'#ffffff',similarity:.05,blend:0}},
+    ]}),{'content-type':'application/json'});
+    job=keyed.job;for(let n=0;n<100&&!['done','error'].includes(job.status);n++){await delay(100);job=(await(await fetch(base+'/job/'+job.id)).json()).job;}
+    assert.equal(job.status,'done',job.error||logs);
+    const keyedFile=join(temp,'api-keyed.mp4');await writeFile(keyedFile,Buffer.from(await(await fetch(base+'/download/'+job.id)).arrayBuffer()));
+    const keyedPixel=spawnSync(ffmpeg,['-v','error','-ss','0.2','-i',keyedFile,'-frames:v','1','-vf','scale=1:1,format=rgb24','-f','rawvideo','pipe:1'],{windowsHide:true,timeout:10000});
+    assert.equal(keyedPixel.status,0,String(keyedPixel.stderr));assert.ok(keyedPixel.stdout[1]>keyedPixel.stdout[0]+15&&keyedPixel.stdout[1]<120,'bridge passes key parameters through to exported pixels');
 
     for(const only of ['audio','text']){
       const standalone=await post('/render',JSON.stringify({timeline:true,duration:.5,width:320,height:180,fps:24,name:only+'-only',

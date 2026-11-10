@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { renderTimeline } from './timeline-render.mjs';
 import { createSpeechService } from './speech-service.mjs';
 import { normalizeKeyframes } from './animation.mjs';
+import { normalizeColorKey } from './color-key.mjs';
 import { extractWaveform } from './waveform.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
@@ -404,7 +405,7 @@ const server = createServer(async (req, res) => {
       } catch (failure) {
         return json(res, 200, { ok: false, error: failure.message, ffmpeg: BIN.ffmpeg || '' });
       }
-      return json(res, 200, { ok: true, port: PORT, ffmpeg: BIN.ffmpeg, ffprobe: BIN.ffprobe || '', version });
+      return json(res, 200, { ok: true, port: PORT, ffmpeg: BIN.ffmpeg, ffprobe: BIN.ffprobe || '', version,capabilities:{colorKey:true} });
     }
 
     if (url.pathname === '/upload' && req.method === 'POST') {
@@ -476,9 +477,10 @@ const server = createServer(async (req, res) => {
           ? Math.max(inPoint + 0.1, Number(clip.out) || inPoint + 5)
           : Math.min(Number(clip.out) || source.duration, source.duration || Number(clip.out) || 0);
         if (!(outPoint > inPoint)) return json(res, 400, { ok: false, error: '片段区间无效' });
-        let keyframes;
-        try { keyframes = normalizeKeyframes(clip.keyframes); }
+        let keyframes,colorKey;
+        try { keyframes = normalizeKeyframes(clip.keyframes);colorKey=normalizeColorKey(clip.colorKey); }
         catch (error) { return json(res,400,{ok:false,error:error.message}); }
+        if(colorKey&&body.timeline!==true)return json(res,400,{ok:false,error:'去背景需要使用多轨时间线导出'});
         prepared.push({
           kind: isImage ? 'image' : clip.kind === 'audio' ? 'audio' : 'video',
           start: Math.max(0, Number(clip.start) || 0),
@@ -486,7 +488,7 @@ const server = createServer(async (req, res) => {
           opacity: clip.opacity === undefined ? 1 : Math.min(1, Math.max(0, Number(clip.opacity) || 0)),
           transitionIn: clip.transitionIn,
           transitionOut: clip.transitionOut,
-          keyframes,
+          keyframes,colorKey:clip.kind==='audio'?undefined:colorKey,
           animationOffset: inPoint,
           path: source.path,
           in: isImage ? 0 : inPoint,

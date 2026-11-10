@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
+import { normalizeColorKey as nativeColorKey } from '../color-key.mjs';
 
 // Run the shipped inline script in an isolated lightweight DOM adapter.
 // These tests cover editing state; visual layout is verified separately.
@@ -80,6 +81,7 @@ function editor({storageBlocked = false, tracks = [], page = {}, browser = {}} =
     appendClip, layout, outputSize, splitAtPlayhead, duplicateSelected,
     deleteSelected, commitHistory, undo, redo, readSettings, updateOutputNote, togglePlay,
     activeRows, visualRows, totalDuration, addTrack, moveClipTo, mediaForClip, clipVolume, mediaKind,
+    normalizeColorKey,keyPixels,setClipColorKey,syncColorKeyInspector,overlayAtPlayhead,startExport,
     parseSrt,serializeSrt,setSpeechDraft,speechState,validateSpeechDraft,applySpeechCaptions,
     buildProject,validateProject,prepareProject,applyProject,projectState,connectPreviousClip,transitionState,
     relinkProjectFiles,closeProjectDialog,matchProjectFiles,chooseMediaFiles,rememberSourceFile,loadSourceFile,authorizeProjectSource,
@@ -472,6 +474,49 @@ test('project JSON excludes keys and runtime media and restores edits as an undo
 });
 
 function mediaFile(overrides={}){return {name:'original.mp4',size:4096,type:'video/mp4',lastModified:123,duration:12,...overrides};}
+test('green, black and custom color keys match bridge validation and preserve transparent alpha',()=>{
+  const {api}=editor();
+  for(const value of [undefined,{mode:'green'},{mode:'black'},{color:'#3344AA',similarity:.12,blend:0}])assert.deepEqual(JSON.parse(JSON.stringify(api.normalizeColorKey(value)??null)),nativeColorKey(value)??null);
+  for(const value of [{color:"#ff00ff';movie=secret"},{mode:'other'},{mode:'green',similarity:NaN},{mode:'black',blend:2},{mode:'green',similarity:'0.1'}]){
+    assert.throws(()=>api.normalizeColorKey(value),/去背景/);assert.throws(()=>nativeColorKey(value),/去背景/);
+  }
+  const green=api.normalizeColorKey({mode:'green',similarity:.1,blend:.2});
+  const pixels=new Uint8ClampedArray([0,255,0,255,255,0,0,128,0,0,255,0,0,180,0,255]);api.keyPixels(pixels,green);
+  assert.equal(pixels[3],0);assert.equal(pixels[7],128);assert.equal(pixels[11],0);assert.ok(pixels[15]>0&&pixels[15]<255,'soft edges have partial alpha');
+  const black=new Uint8ClampedArray([0,0,0,255,20,20,20,255,255,255,255,255]);api.keyPixels(black,api.normalizeColorKey({mode:'black',blend:0}));
+  assert.equal(black[3],0);assert.equal(black[7],0);assert.equal(black[11],255);
+});
+
+test('color keys are per clip, undoable, and survive splitting, copying and project restoration',async()=>{
+  const {api,elements}=editor(),{source,clip}=seed(api);source.kind='video';api.setSelection([{type:'clip',id:clip.id}]);api.commitHistory();
+  api.setClipColorKey('green');assert.equal(clip.colorKey.color,'#00ff00');assert.equal(elements.get('colorKeyOptions').hidden,false);
+  api.undo();assert.equal(api.S.clips[0].colorKey,undefined);api.redo();assert.equal(api.S.clips[0].colorKey.mode,'green');
+  api.S.time=4;api.splitAtPlayhead();assert.equal(api.S.clips.length,2);assert.ok(api.S.clips.every(c=>c.colorKey.mode==='green'));
+  api.setSelection([{type:'clip',id:api.S.clips[1].id}]);api.setClipColorKey('black');assert.equal(api.S.clips[0].colorKey.mode,'green');
+  api.duplicateSelected();assert.ok(api.S.clips.some(c=>c.colorKey.mode==='black'));
+  const project=api.buildProject();api.validateProject(project);await api.prepareProject(project);await api.applyProject();
+  assert.equal(api.S.clips[0].colorKey.mode,'green');assert.equal(api.S.clips[1].colorKey.mode,'black');
+  project.clips[0].colorKey.color='bad';assert.throws(()=>api.validateProject(project),/去背景颜色/);
+});
+
+test('overlay at playhead creates an upper visual track and moves grouped audio together as one undo step',()=>{
+  const {api}=editor(),{source,clip:base}=seed(api);source.kind='video';
+  const overlay=api.appendClip(source,0,4);api.setSelection([{type:'clip',id:overlay.id}]);api.setClipColorKey('green');api.detachAudio();
+  const audio=api.S.clips.find(c=>c.audioOnly);assert.equal(audio.colorKey,undefined);
+  api.setSelection([{type:'clip',id:overlay.id}]);api.S.time=2;api.commitHistory();const original=overlay.start,tracks=api.S.tracks.length;
+  api.overlayAtPlayhead();assert.equal(overlay.start,2);assert.equal(audio.start,2);assert.notEqual(overlay.trackId,base.trackId);assert.equal(base.start,0);assert.equal(api.S.tracks.length,tracks+1);
+  api.undo();assert.equal(api.S.clips.find(c=>c.id===overlay.id).start,original);assert.equal(api.S.tracks.length,tracks);
+  api.setSelection([{type:'clip',id:overlay.id}]);api.S.tracks.find(t=>t.id===api.S.clips.find(c=>c.id===overlay.id).trackId).locked=true;
+  api.setClipColorKey('black');assert.equal(api.S.clips.find(c=>c.id===overlay.id).colorKey.mode,'green');
+  api.overlayAtPlayhead();assert.equal(api.S.tracks.length,tracks);
+});
+
+test('old bridges cannot silently export a keyed clip without its background removal',async()=>{
+  const {api,elements}=editor(),{source,clip}=seed(api);source.kind='video';source.bridgeId='uploaded';api.bridge.base='http://127.0.0.1:8787';api.bridge.info={};
+  clip.colorKey=api.normalizeColorKey({mode:'green'});await api.startExport();
+  assert.match(elements.get('toast').textContent,/重启.*去背景/);assert.equal(api.S.rendering,false);
+});
+
 function savedFileProject(file=mediaFile()){
   const {api}=editor(),source={id:'saved',kind:api.mediaKind(file),name:file.name,fileName:file.name,size:file.size,duration:file.duration,width:1920,height:1080,lastModified:file.lastModified};
   api.S.sources.push(source);api.appendClip(source,2,8);

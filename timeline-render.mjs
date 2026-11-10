@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { keyframeExpression } from './animation.mjs';
+import { colorKeyFilter } from './color-key.mjs';
 
 const bounded = (value,min,max,fallback=0) => Number.isFinite(Number(value)) ? Math.min(max,Math.max(min,Number(value))) : fallback;
 const decimal = value => Number(value).toFixed(4);
@@ -29,6 +30,8 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
     const x=`${W}*(${keyframeExpression(clip,'ox',`t-${decimal(clip.start)}`,bounded(clip.ox,-.5,.5))})`;
     const y=`${H}*(${keyframeExpression(clip,'oy',`t-${decimal(clip.start)}`,bounded(clip.oy,-.5,.5))})`;
     const enter=transition(clip.transitionIn,duration),leave=transition(clip.transitionOut,duration),effects=[];
+    const keyFilter=colorKeyFilter(clip.colorKey);
+    if(keyFilter)effects.push(keyFilter);
     const p=`clip(T/${decimal(enter.duration)},0,1)`,q=`clip((T-${decimal(duration-leave.duration)})/${decimal(leave.duration)},0,1)`;
     if(enter.type==='fade')effects.push(`fade=t=in:st=0:d=${decimal(enter.duration)}:alpha=1`);
     if(leave.type==='fade')effects.push(`fade=t=out:st=${decimal(duration-leave.duration)}:d=${decimal(leave.duration)}:alpha=1`);
