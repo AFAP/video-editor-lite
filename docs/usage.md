@@ -37,6 +37,12 @@
 
 贴纸通过内置 image_gen 分批生成，随后按主体裁切、清理独立背景散点并统一留白。新增 96 张的完整提示词保存在 `assets/stickers/generation-prompts-112.json`，原先 16 张的提示词保留在 `generation-prompts.json`。`scripts/expand-sticker-library.py` 是开发期打包工具，编辑器运行时不需要 Python 或 Pillow。
 
+## 去背景与叠加
+
+选中视频或图片，在右侧「去背景 / 色度抠像」中选择绿幕、黑底或自选颜色，可调容差和边缘柔化。把播放头放到底片要叠加的位置，点击「叠加到播放头」即可移入上层轨道并对齐；也可手动安排各轨。去背景会透出下方轨道，最下方没有素材时显示黑场。
+
+设置随工程保存，支持撤销、分割、复制；预览、浏览器录制及本机 FFmpeg 导出均使用这些设置。主体中与背景相近的颜色也会受影响。更新本机版后请重启桥接器；旧桥接器会提示更新，以免导出时丢失去背景效果。详见[剪辑操作](editing.md)。
+
 ## 转场与画幅
 
 - 左侧素材库有独立的「转场」分类，提供叠化、左右擦拭和左右滑动。悬停卡片可看动态样片；拖到同一画面轨的两段交界处插入，也可选中片段后点卡片上的 `＋`，或直接点击交界的 `＋` 插入点。
@@ -96,6 +102,7 @@
 | `favicon.svg` / `favicon.ico` / `favicon.png` | 浏览器标签页图标，包含矢量版和多尺寸兼容版 |
 | `ffmpeg-bridge.mjs` | 仅监听本机的上传、元数据、任务队列和下载服务，保留旧版顺序拼接接口 |
 | `timeline-render.mjs` | 多轨 FFmpeg 滤镜：转场、延时叠加、透明度、缩放、原声 / 配乐混音 |
+| `color-key.mjs` | 去背景参数校验与保留原始透明度的 FFmpeg 色度抠像滤镜 |
 | `speech-service.mjs` | 百炼 ASR / TTS / DeepSeek 调用、音频提取、真实时间戳与任务取消 |
 | `启动视频工具.bat` | 启动桥接器并打开浏览器 |
 | `test/` | 无第三方依赖的回归测试 |
@@ -105,6 +112,7 @@ npm test               # 时间模型、工程、轨道、字幕及语音接口�
 npm run test:bridge    # 真实 FFmpeg 上传、拼接、多轨合成、混音和下载检查
 npm run test:speech    # 模拟百炼 + 真实 FFmpeg：识别、配音、试听和导出
 npm run test:transitions # 真实 FFmpeg 转场画面与方向检查
+npm run test:color-key # 真实 FFmpeg 绿幕 / 黑底、柔边与透明度检查
 ```
 
 集成测试在独立端口运行，只使用自动生成的测试素材，不调用真实云端或消耗百炼额度。可通过 `FFMPEG_PATH` / `FFPROBE_PATH` 指定测试二进制路径。
