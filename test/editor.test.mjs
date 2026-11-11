@@ -78,7 +78,7 @@ function editor({storageBlocked = false, tracks = [], page = {}, browser = {}} =
   });
   let js = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   js = js.replace(/\}\)\(\);\s*$/, `globalThis.testApi = { S, settings, bridge, history,
-    appendClip, layout, outputSize, splitAtPlayhead, duplicateSelected,
+    appendClip, addSourceToTimeline, importPickedFiles, reorderTrack, normalizeTrackNames, setClipScale, copyTimelineSelection, pasteTimelineSelection, layout, outputSize, splitAtPlayhead, duplicateSelected,
     deleteSelected, commitHistory, undo, redo, readSettings, updateOutputNote, togglePlay,
     activeRows, visualRows, totalDuration, addTrack, moveClipTo, mediaForClip, clipVolume, mediaKind,
     normalizeColorKey,keyPixels,setClipColorKey,syncColorKeyInspector,overlayAtPlayhead,startExport,
@@ -391,6 +391,7 @@ test('parallel tracks use independent start times and total duration is their ma
 test('image duration can be extended, split, and placed over the primary video', () => {
   const {api}=editor({tracks:['visual']});seed(api);const image={id:'image',kind:'image',duration:86400,width:500,height:500};api.S.sources.push(image);
   const overlay=api.appendClip(image,0,5,'v2');overlay.out=12;api.moveClipTo(overlay,2,'v2');
+  api.reorderTrack('v2','v1');
   assert.equal(api.totalDuration(),14);assert.equal(api.visualRows(3).at(-1).clip,overlay);
   api.S.time=6;api.splitAtPlayhead();
   const right=api.S.clips.find(c=>c.id===api.S.selected.id);
@@ -474,6 +475,77 @@ test('project JSON excludes keys and runtime media and restores edits as an undo
 });
 
 function mediaFile(overrides={}){return {name:'original.mp4',size:4096,type:'video/mp4',lastModified:123,duration:12,...overrides};}
+function sourceAction(elements,id,act){
+  return elements.get('sources').listeners.click[0]({target:{closest(selector){return selector==='[data-act]'?{dataset:{act}}:selector==='.src'?{dataset:{id}}:null;}}});
+}
+test('importing video, images and audio only populates the library without changing timeline or selection',async()=>{
+  const {api,elements}=editor(),{clip}=seed(api);api.S.time=3;api.setSelection([{type:'clip',id:clip.id}]);api.commitHistory();
+  const before=JSON.stringify({tracks:api.S.tracks,clips:api.S.clips,selection:api.selectionEntries(),time:api.S.time});
+  await api.importPickedFiles([mediaFile(),mediaFile({name:'music.mp3',type:'audio/mpeg'}),mediaFile({name:'cover.png',type:'image/png'})]);
+  assert.equal(api.S.sources.length,4);assert.equal(api.S.busy,false);
+  assert.equal(JSON.stringify({tracks:api.S.tracks,clips:api.S.clips,selection:api.selectionEntries(),time:api.S.time}),before);
+  api.undo();assert.equal(api.S.sources.length,1);api.redo();assert.equal(api.S.sources.length,4);
+  const video=api.S.sources[1],image=api.S.sources[3],audio=api.S.sources[2];
+  sourceAction(elements,video.id,'add');assert.equal(api.S.clips.at(-1).start,8);assert.equal(api.S.selected.id,api.S.clips.at(-1).id);
+  sourceAction(elements,video.id,'add');assert.equal(api.S.clips.at(-1).start,20);assert.equal(api.S.clips.filter(c=>c.sourceId===video.id).length,2);
+  sourceAction(elements,image.id,'add');assert.equal(api.S.clips.at(-1).out,5);assert.equal(api.S.clips.at(-1).trackId,'v1');
+  sourceAction(elements,audio.id,'add');assert.equal(api.S.clips.at(-1).trackId,'a1');assert.equal(api.S.tracks.at(-1).kind,'audio');
+  api.undo();assert.equal(api.S.clips.length,4);assert.equal(api.S.sources.length,4);assert.equal(api.S.tracks.length,1);
+});
+
+test('library actions work after import, protect referenced sources and respect busy state',async()=>{
+  const {api,elements}=editor();await api.importPickedFiles([mediaFile()]);const source=api.S.sources[0];
+  api.S.busy=true;sourceAction(elements,source.id,'add');assert.equal(api.S.clips.length,0);api.S.busy=false;
+  sourceAction(elements,source.id,'add');assert.equal(api.S.clips.length,1);sourceAction(elements,source.id,'remove');assert.equal(api.S.sources.length,1);
+  assert.match(elements.get('toast').textContent,/仍在时间线/);api.deleteSelected();sourceAction(elements,source.id,'remove');assert.equal(api.S.sources.length,0);
+  api.undo();assert.equal(api.S.sources[0],source);sourceAction(elements,source.id,'add');assert.equal(api.S.clips.length,1);
+});
+
+test('new tracks append below with unified names, while reordering changes compositing and persists as one undo step',async()=>{
+  const {api}=editor();const {source,clip}=seed(api);source.kind='video';api.addTrack('audio');api.addTrack('visual');
+  assert.equal(api.S.tracks.map(t=>t.name).join(','),'轨道1,轨道2,轨道3');assert.equal(api.S.tracks.map(t=>t.id).join(','),'v1,a1,v2');
+  const lower=api.appendClip(source,0,8,'v2');api.commitHistory();assert.equal(api.visualRows(1).at(-1).clip.id,clip.id);
+  const count=api.history.entries.length;assert.equal(api.reorderTrack('v2','v1'),true);assert.equal(api.visualRows(1).at(-1).clip.id,lower.id);assert.equal(api.history.entries.length,count+1);
+  assert.equal(api.S.tracks[0].name,'轨道3');assert.equal(api.S.clips[0].start,0);
+  api.undo();assert.equal(api.S.tracks[0].id,'v1');api.redo();assert.equal(api.S.tracks[0].id,'v2');
+  const project=api.buildProject();await api.prepareProject(project);await api.applyProject();assert.equal(api.S.tracks.map(t=>t.id).join(','),'v2,v1,a1');
+  api.S.tracks[0].locked=true;assert.equal(api.reorderTrack('v2','a1',true),false);assert.equal(api.S.tracks[0].id,'v2');
+  api.S.tracks[0].name='画面2';api.S.tracks[1].name='画面1';api.S.tracks[2].name='音频1';api.normalizeTrackNames();assert.equal(api.S.tracks.map(t=>t.name).join(','),'轨道1,轨道2,轨道3');
+});
+
+test('scale can be typed with decimals, stays in sync with the slider, supports keyframes and undo, and rejects locked edits',()=>{
+  const {api,elements}=editor();const {clip,source}=seed(api);source.kind='video';api.commitHistory();
+  const field=elements.get('cpScaleNumber');field.value='145.5';field.listeners.input[0]();field.listeners.change[0]();assert.equal(clip.scale,1.455);assert.equal(elements.get('cpScale').value,145.5);
+  api.undo();assert.equal(api.S.clips[0].scale,1);api.redo();assert.equal(api.S.clips[0].scale,1.455);
+  const current=api.S.clips[0];api.S.time=2;api.setAnimationValue(current,'scale',1,{force:true});assert.equal(api.setClipScale('175.2'),true);assert.ok(Math.abs(current.keyframes.scale[0].value-1.752)<1e-9);
+  const before=JSON.stringify(current);assert.equal(api.setClipScale(''),false);assert.equal(api.setClipScale('invalid'),false);assert.equal(JSON.stringify(current),before);
+  api.S.tracks[0].locked=true;assert.equal(api.setClipScale('200'),false);assert.equal(JSON.stringify(current),before);
+});
+
+test('copy and paste retain a snapshot of image/video settings and paste onto the active compatible track at the cursor',()=>{
+  const {api}=editor();const {clip,source}=seed(api);source.kind='video';clip.colorKey=api.normalizeColorKey({mode:'green'});clip.scale=1.25;clip.keyframes={ox:[{time:1,value:.1}]};
+  api.setSelection([{type:'clip',id:clip.id}]);assert.equal(api.copyTimelineSelection(),true);clip.scale=2;api.addTrack('visual');api.S.time=12;api.commitHistory();
+  assert.equal(api.pasteTimelineSelection(),true);const pasted=api.S.clips.at(-1);assert.equal(pasted.trackId,'v2');assert.equal(pasted.start,12);assert.equal(pasted.scale,1.25);assert.equal(pasted.colorKey.mode,'green');assert.equal(pasted.sourceId,clip.sourceId);assert.deepEqual(pasted.keyframes,clip.keyframes);
+  api.undo();assert.equal(api.S.clips.length,1);api.redo();assert.equal(api.S.clips.length,2);
+});
+
+test('multitrack clipboard keeps group offsets and captions, remaps IDs, and rejects locked or missing-source targets atomically',()=>{
+  const {api}=editor();const {clip,source}=seed(api);source.kind='video';api.setSelection([{type:'clip',id:clip.id}]);api.detachAudio();
+  const audio=api.S.clips.find(c=>c.audioOnly);audio.start=1;api.createFancyText(api.FANCY_TEXT_PRESETS[0].id);const text=api.S.texts[0];text.start=2;text.end=4;
+  api.setSelection([...api.S.clips.map(c=>({type:'clip',id:c.id})),{type:'text',id:text.id}]);api.copyTimelineSelection();api.S.time=20;
+  api.S.tracks.find(t=>t.id===audio.trackId).locked=true;api.pasteTimelineSelection();assert.equal(api.S.clips.length,2);assert.equal(api.S.texts.length,1);
+  api.S.tracks.find(t=>t.id===audio.trackId).locked=false;assert.equal(api.pasteTimelineSelection(),true);
+  const pasted=api.S.clips.slice(2);assert.equal(pasted[0].start,20);assert.equal(pasted[1].start,21);assert.equal(pasted[0].groupId,pasted[1].groupId);assert.notEqual(pasted[0].groupId,clip.groupId);assert.equal(api.S.texts.at(-1).start,22);assert.equal(api.S.texts.at(-1).end,24);
+  api.S.sources=[];const count=api.S.clips.length;api.pasteTimelineSelection();assert.equal(api.S.clips.length,count);
+});
+
+test('copying adjacent transition clips remaps the link without altering original transition audio',()=>{
+  const {api}=editor();const {clip,source}=seed(api);source.kind='video';const next=api.appendClip(source,0,8,'v1');api.insertTransition('fade',clip,next,.5);
+  api.setSelection([{type:'clip',id:clip.id},{type:'clip',id:next.id}]);api.copyTimelineSelection();api.S.time=30;api.pasteTimelineSelection();
+  const [a,b]=api.S.clips.slice(2);assert.equal(b.transitionIn.fromId,a.id);assert.equal(b.start,37.5);assert.equal(next.transitionIn.fromId,clip.id);
+  api.setSelection([{type:'clip',id:next.id}]);api.copyTimelineSelection();api.S.time=50;api.pasteTimelineSelection();assert.equal(api.S.clips.at(-1).transitionIn,undefined);assert.equal(clip.fadeOut,.5);
+});
+
 test('green, black and custom color keys match bridge validation and preserve transparent alpha',()=>{
   const {api}=editor();
   for(const value of [undefined,{mode:'green'},{mode:'black'},{color:'#3344AA',similarity:.12,blend:0}])assert.deepEqual(JSON.parse(JSON.stringify(api.normalizeColorKey(value)??null)),nativeColorKey(value)??null);

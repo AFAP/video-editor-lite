@@ -398,7 +398,7 @@ main {
 .src {
   position:relative;
   min-width:0;
-  cursor:pointer;
+  cursor:default;
   border-radius:5px;
   padding:0 0 3px;
   border:1px solid transparent
@@ -1924,16 +1924,19 @@ kbd {
 
 /* Multitrack lanes scroll together; their content never sizes the workspace. */
 main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
-.tl-head-viewport{width:136px;flex:none;overflow:hidden;border-right:1px solid var(--line)}
+.tl-head-viewport{width:160px;flex:none;overflow:hidden;border-right:1px solid var(--line)}
 .tl-head{width:100%;height:100%;border:0}
 .lane-head-window{min-height:0;flex:1;overflow:hidden}.lane-head-list{will-change:transform}
 .ruler{position:sticky;top:0;z-index:6}
 .tl-head .pad{height:30px;font-size:8px;padding-left:10px;letter-spacing:0}
 .lane-head{height:48px;display:flex;align-items:center;gap:3px;padding:0 6px;border-bottom:1px solid var(--line)}
 .lane-head.active{background:#b5ed8510;box-shadow:inset 2px 0 var(--accent)}
-.lane-select{flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;border:0;background:none;padding:0 3px;color:var(--dim);font-size:10px}
+.lane-select{flex:1;min-width:0;overflow:hidden;display:block;white-space:nowrap;text-overflow:ellipsis;text-align:left;border:0;background:none;padding:0 3px;color:var(--dim);font-size:10px}
 .lane-select small{font:8px Consolas,monospace;color:var(--faint)}
-.lane-control{width:17px;height:20px;padding:0;border:0;background:none;border-radius:3px;color:var(--faint);font-size:9px}
+.track-grip{flex:none;padding:2px;border:0;background:none;color:var(--faint);cursor:grab;touch-action:none}
+.track-grip:active{cursor:grabbing}.lane-head.reorder-before{box-shadow:inset 0 2px var(--accent)}.lane-head.reorder-after{box-shadow:inset 0 -2px var(--accent)}
+.scale-number{display:flex;align-items:center;gap:3px;flex:none}.fld .scale-number input{width:62px;flex:none;text-align:right}
+.lane-control{flex:none;width:17px;height:20px;padding:0;border:0;background:none;border-radius:3px;color:var(--faint);font-size:9px}
 .lane-control:hover{background:var(--panel3);color:var(--text)}.lane-control.on{color:var(--danger);background:#f1897f15}
 .timeline-lanes{position:absolute;top:30px;left:0;right:0;min-width:0}
 .track-lane{position:absolute;left:0;right:0;border-bottom:1px solid var(--line);background:repeating-linear-gradient(90deg,#ffffff03 0 1px,transparent 1px 40px)}
@@ -1946,8 +1949,8 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
 .track-adder{position:relative;display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid #63844e;border-radius:5px;color:var(--accent);background:var(--soft);font-size:10px;cursor:pointer}
 .track-adder select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
 .track-adder:focus-within{outline:1px solid var(--accent);outline-offset:2px}
-@media(max-width:940px){.tl-head-viewport{width:110px}.lane-head{gap:1px;padding:0 3px}}
-@media(max-width:740px){main{grid-template-rows:minmax(0,1fr) var(--timeline-height,270px)}.tl-head-viewport{width:100px}}
+@media(max-width:940px){.tl-head-viewport{width:136px}.lane-head{gap:1px;padding:0 3px}}
+@media(max-width:740px){main{grid-template-rows:minmax(0,1fr) var(--timeline-height,270px)}.tl-head-viewport{width:128px}}
 
 .speech-launch{color:#d3b8f7!important;border-color:#68517f!important;background:#b68de510!important}
 #speechDialog{width:820px;max-width:calc(100vw - 30px);max-height:calc(100dvh - 36px);overflow:hidden}
@@ -2042,7 +2045,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
     <div class="preview-heading"><b>播放器</b><select id="setAspect" class="canvas-preset" aria-label="画布比例"><option value="source">原画幅</option><option value="landscape">16:9 横屏</option><option value="portrait">9:16 竖屏</option><option value="square">1:1 方形</option><option value="feed">4:5 图文</option></select><span class="chip" id="previewSize">1280 × 720</span><span class="grow"></span><button class="icon-btn" id="btnGuides" title="切换安全参考线" aria-label="切换安全参考线"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v18M16 3v18M3 8h18M3 16h18"/></svg></button><button class="icon-btn" id="btnFullscreen" title="全屏预览" aria-label="全屏预览"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div>
     <div class="stage-wrap empty" id="stageWrap">
       <canvas id="stage" width="1280" height="720" aria-label="视频预览画面"></canvas><div class="safe-guides"></div>
-      <div class="stage-empty" id="stageEmpty"><div class="empty-visual"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4m-4 6h4m10-6h4m-4 6h4"/></svg></div><h1>好故事，从这里开始</h1><p>导入视频、图片或音频，自由组合画面和声音。<br>也可以将文件直接拖到这里。</p><button class="btn primary" id="btnImport2" title="选择视频、图片或音频文件" aria-label="选择视频、图片或音频文件"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>导入素材</button><button class="demo-link" id="btnTryAsset">用背景素材开始 →</button><small>MP4 · MOV · WebM · MKV / H.265 由本机 FFmpeg 支持</small></div>
+      <div class="stage-empty" id="stageEmpty"><div class="empty-visual"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4m-4 6h4m10-6h4m-4 6h4"/></svg></div><h1>好故事，从这里开始</h1><p>先导入视频、图片或音频，再点左侧素材上的「＋」加入轨道。<br>也可以将文件拖入窗口，添加到素材库。</p><button class="btn primary" id="btnImport2" title="选择视频、图片或音频文件" aria-label="选择视频、图片或音频文件"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>导入素材</button><button class="demo-link" id="btnTryAsset">用背景素材开始 →</button><small>MP4 · MOV · WebM · MKV / H.265 由本机 FFmpeg 支持</small></div>
       <div class="preview-warning" id="previewWarning" hidden>浏览器无法预览此编码；仍可通过本机 FFmpeg 裁剪并导出。</div>
     </div>
     <div class="transport"><div class="timecode"><span class="tc" id="tcNow">0:00.00</span><span class="tc dim" id="tcTotal">/ 0:00.00</span></div><div class="play-controls"><button class="icon-btn" id="btnPrevFrame" title="上一帧 (←)" aria-label="上一帧 (←)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 5v14m12-14-9 7 9 7Z"/></svg></button><button class="play" id="btnPlay" title="播放 / 暂停 (空格)" aria-label="播放 / 暂停"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7Z"/></svg></button><button class="icon-btn" id="btnNextFrame" title="下一帧 (→)" aria-label="下一帧 (→)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 5v14M6 5l9 7-9 7Z"/></svg></button></div><span class="preview-fit">适应画布 <span style="margin-left:7px;color:var(--dim)" id="previewRatio">16:9</span></span></div>
@@ -2065,7 +2068,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
         <div class="fld"><span>柔边</span><input type="range" id="cpKeyBlend" min="0" max="100" value="8" aria-label="去背景边缘柔化"><b class="val" id="cpKeyBlendVal">8%</b></div></div>
         <button class="btn sm" id="btnOverlayAtPlayhead">叠加到播放头</button><p class="note" id="colorKeyNote">把播放头放到底片要叠加的位置，点击按钮将本片段移到上层。去掉的颜色会显示下方画面。</p>
         </details><details open id="transitionControls"><summary>片头 / 片尾效果</summary><div class="fld"><span>入场</span><select id="clipTransitionIn" aria-label="画面入场转场"><option value="none">无</option><option value="fade">叠化 / 淡入淡出</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>出场</span><select id="clipTransitionOut" aria-label="画面出场转场"><option value="none">无</option><option value="fade">叠化 / 淡入淡出</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>秒数</span><input id="clipTransitionDuration" type="number" min="0.01" max="5" step="0.1" value="0.5" aria-label="转场时长"></div><button class="btn sm" id="btnOpenTransitions">打开转场素材库</button><button class="btn sm" id="btnConnectTransition">与前一片段衔接</button><p class="note">衔接会移动当前片段，与前段重叠；其他轨道不移动。可以撤销。</p></details><details open id="visualControls"><summary>画面变换</summary><div class="fld"><span>不透明</span><input type="range" id="cpOpacity" min="0" max="100" step="1" aria-label="画面不透明度"><b class="val" id="cpOpacityVal">100%</b></div>
-        <div class="fld"><span>缩放</span><input type="range" id="cpScale" min="10" max="300" step="1"><b class="val" id="cpScaleVal">100%</b></div>
+        <div class="fld"><span>缩放</span><input type="range" id="cpScale" min="10" max="300" step="0.1" aria-label="画面缩放"><label class="scale-number"><input type="number" id="cpScaleNumber" min="10" max="300" step="0.1" value="100" aria-label="画面缩放百分比"><span>%</span></label></div>
         <div class="fld"><span>水平</span><input type="range" id="cpOx" min="-50" max="50" step="1"><b class="val" id="cpOxVal">0%</b></div>
         <div class="fld"><span>垂直</span><input type="range" id="cpOy" min="-50" max="50" step="1"><b class="val" id="cpOyVal">0%</b></div>
         <button class="btn sm" id="cpReset" style="margin-top:6px">重置画面</button>
@@ -2114,7 +2117,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
     <div class="zoom-group"><button class="icon-btn" id="btnZoomOut" title="缩小时间线" aria-label="缩小时间线"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><span id="zoomLabel">适应</span><button class="icon-btn" id="btnZoomIn" title="放大时间线" aria-label="放大时间线"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="btn ghost sm" id="btnFit" title="让所有片段适应窗口">适应</button></div>
   </div>
   <div class="tl-body"><div class="tl-head-viewport"><div class="tl-head" id="trackHeads"></div></div>
-    <div class="tl-scroll" id="tlScroll"><div class="tl-inner" id="tlInner"><div class="ruler" id="ruler"></div><div class="timeline-lanes" id="trackV"></div><div class="timeline-empty" id="timelineEmpty"><b>你的故事线，还是一张白纸</b> · 导入视频或添加背景开始剪辑</div><div class="playhead" id="playhead"></div></div></div>
+    <div class="tl-scroll" id="tlScroll"><div class="tl-inner" id="tlInner"><div class="ruler" id="ruler"></div><div class="timeline-lanes" id="trackV"></div><div class="timeline-empty" id="timelineEmpty"><b>你的故事线，还是一张白纸</b> · 点击左侧素材「＋」加入轨道，或添加背景开始剪辑</div><div class="playhead" id="playhead"></div></div></div>
   </div>
   <div class="tl-foot"><span><kbd>Space</kbd> 播放 / 暂停</span><span><kbd>← →</kbd> 逐帧定位</span><span><kbd>Ctrl + 滚轮</kbd> 缩放</span><span class="grow"></span><span>Shift / Ctrl 多选 · 空白处框选 · Shift+Delete 波纹删除</span></div>
 </section>
@@ -2161,7 +2164,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
           <a class="btn primary" id="dlLink" download>下载</a>
         </div>
       </section></dialog>
-<dialog id="helpDialog" aria-labelledby="helpTitle"><div class="dialog-heading"><h2 id="helpTitle">剪辑快捷键</h2><span class="grow"></span><button class="icon-btn" id="btnCloseHelp" title="关闭快捷键说明" aria-label="关闭快捷键说明"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div><div class="shortcut-list"><div>导入素材<kbd>Ctrl O</kbd></div><div>保存工程<kbd>Ctrl S</kbd></div><div>导出设置<kbd>Ctrl E</kbd></div><div>播放 / 暂停<kbd>Space</kbd></div><div>向前 / 后一帧<kbd>← / →</kbd></div><div>分割片段<kbd>S</kbd></div><div>添加文字<kbd>T</kbd></div><div>复制所选<kbd>Ctrl D</kbd></div><div>删除所选<kbd>Delete</kbd></div><div>撤销 / 重做<kbd>Ctrl Z / Ctrl Shift Z</kbd></div></div></dialog>
+<dialog id="helpDialog" aria-labelledby="helpTitle"><div class="dialog-heading"><h2 id="helpTitle">剪辑快捷键</h2><span class="grow"></span><button class="icon-btn" id="btnCloseHelp" title="关闭快捷键说明" aria-label="关闭快捷键说明"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div><div class="shortcut-list"><div>导入素材<kbd>Ctrl O</kbd></div><div>保存工程<kbd>Ctrl S</kbd></div><div>导出设置<kbd>Ctrl E</kbd></div><div>播放 / 暂停<kbd>Space</kbd></div><div>向前 / 后一帧<kbd>← / →</kbd></div><div>分割片段<kbd>S</kbd></div><div>添加文字<kbd>T</kbd></div><div>复制片段<kbd>Ctrl C</kbd></div><div>粘贴到播放头<kbd>Ctrl V</kbd></div><div>创建副本<kbd>Ctrl D</kbd></div><div>删除所选<kbd>Delete</kbd></div><div>撤销 / 重做<kbd>Ctrl Z / Ctrl Shift Z</kbd></div></div></dialog>
 <dialog id="speechDialog" aria-labelledby="speechTitle">
   <div class="speech-heading"><div class="speech-mark">✦</div><div><h2 id="speechTitle">AI 语音工作台</h2><p>识别字幕，生成配音，把声音接到故事里。</p></div><span class="grow"></span><span class="speech-config-state" id="speechConfigState">待配置 Key</span><button class="icon-btn" id="btnCloseSpeech" aria-label="关闭 AI 语音工作台">×</button></div>
   <div class="speech-tabs" role="tablist" aria-label="AI 语音功能"><button id="speechTab-captions" role="tab" aria-selected="true" aria-controls="speech-captions">字幕识别</button><button id="speechTab-tts" role="tab" aria-selected="false" aria-controls="speech-tts" tabindex="-1">AI 配音</button><button id="speechTab-settings" role="tab" aria-selected="false" aria-controls="speech-settings" tabindex="-1">百炼设置</button></div>
@@ -2248,7 +2251,7 @@ function clearToast() {
 /* ------------------------------------------------------------------ 状态 */
 const S = {
   tracks: [
-    {id:'v1',kind:'visual',name:'画面1',muted:false,hidden:false},
+    {id:'v1',kind:'visual',name:'轨道1',muted:false,hidden:false},
   ],
   activeTrack:'v1',
   sources: [],
@@ -2720,18 +2723,15 @@ function activateSource(source){
 async function addFiles(fileList) {
   const files=Array.from(fileList||[]);
   if(!files.length)return toast('没有选到文件',true);
+  commitHistory();
   for(const file of files){
     try{
       const source=await loadSourceFile(file);S.sources.push(source);
-      appendClip(source,0,source.kind==='image'?5:source.duration);activateSource(source);
+      activateSource(source);
       if(source.kind!=='image'&&!source.el)toast('「'+file.name+'」仅支持本机 FFmpeg 导出，浏览器无法预览');
     }catch(error){toast(error.message,true);}
   }
   renderSources();
-  renderTimeline();
-  syncStage();
-  renderPanels();
-  seek(S.time);
   updateSummary();
   commitHistory();
 }
@@ -2806,13 +2806,17 @@ function appendClip(source, inPoint, outPoint, trackId) {
   S.clips.push(clip); S.activeTrack=track.id; S.selected={type:'clip',id:clip.id};
   return clip;
 }
-function addTrack(kind,{history=true}={}) {
+function nextTrackName(){return '轨道'+(Math.max(0,...S.tracks.map(t=>Number(/^轨道\s*(\d+)$/.exec(t.name)?.[1])||0))+1);}
+function normalizeTrackNames(){
+  const used=new Set(S.tracks.filter(t=>/^轨道\s*\d+$/.test(t.name)).map(t=>t.name.replace(/\s/g,'')));
+  let n=1;for(const track of S.tracks){if(/^轨道\s*\d+$/.test(track.name)){track.name=track.name.replace(/\s/g,'');continue;}while(used.has('轨道'+n))n++;track.name='轨道'+n++;used.add(track.name);}
+}
+function addTrack(kind,{history=true,position='bottom'}={}) {
   stopPlayback();
   const prefix = {visual:'v',audio:'a',text:'t'}[kind];
   const n = Math.max(0,...S.tracks.filter(t => t.kind===kind).map(t => Number(t.id.slice(1))||0))+1;
-  const track={id:prefix+n,kind,name:({visual:'画面',audio:'音频',text:'文字'}[kind])+n,muted:false,hidden:false};
-  const index = S.tracks.findIndex(t => t.kind === kind);
-  S.tracks.splice(index<0 ? S.tracks.length : index,0,track); S.activeTrack=track.id;
+  const track={id:prefix+n,kind,name:nextTrackName(),muted:false,hidden:false};
+  S.tracks.splice(position==='top'?0:S.tracks.length,0,track); S.activeTrack=track.id;
   renderTimeline(); revealTrack(track.id); updateSummary(); if(history)commitHistory();
 }
 function revealTrack(id) {
@@ -3267,7 +3271,8 @@ function renderTimeline() {
   $('#ruler').innerHTML=ticks;
   $('#trackHeads').innerHTML='<div class="pad">轨道 · 上层覆盖下层</div><div class="lane-head-window"><div class="lane-head-list">'+S.tracks.map(track=>
     '<div class="lane-head '+(S.activeTrack===track.id?'active ':'')+(track.hidden?'hidden-lane':'')+'" data-track="'+track.id+'">'+
-    '<button class="lane-select" data-action="select" title="选择'+escapeHtml(track.name)+'">'+escapeHtml(track.name)+'<small>'+track.id.toUpperCase()+'</small></button>'+
+    '<button class="track-grip" data-reorder="'+track.id+'" aria-label="拖动排序：'+escapeHtml(track.name)+'" title="拖动调整轨道顺序；Alt + 上下键移动">⠿</button>'+
+    '<button class="lane-select" data-action="select" title="选择'+escapeHtml(track.name)+'">'+escapeHtml(track.name)+'</button>'+
     (track.kind!=='text'?'<button class="lane-control '+(track.muted?'on':'')+'" data-action="mute" title="静音'+escapeHtml(track.name)+'" aria-pressed="'+track.muted+'">M</button>':'')+
     '<button class="lane-control '+(track.hidden?'on':'')+'" data-action="hide" title="启用 / 停用'+escapeHtml(track.name)+'" aria-pressed="'+track.hidden+'">'+(track.hidden?'○':'●')+'</button>'+
     '<button class="lane-control '+(track.locked?'on':'')+'" data-action="lock" title="锁定 / 解锁轨道" aria-pressed="'+Boolean(track.locked)+'">'+(track.locked?'锁':'◇')+'</button>'+
@@ -3312,7 +3317,7 @@ function renderSources() {
   $('#sourceCount').textContent = S.sources.length;
   $('#sourceSize').textContent = S.sources.length ? fmtBytes(S.sources.reduce((n, source) => n + source.size, 0)) : '本地文件';
   if (!S.sources.length) {
-    box.innerHTML = '<div class="empty-src">素材库还是空的<br>导入后，视频会自动加入时间线</div>';
+    box.innerHTML = '<div class="empty-src">素材库还是空的<br>导入素材后，点击「＋」加入轨道</div>';
     return;
   }
   if (!filtered.length) box.innerHTML = '<div class="empty-src">没有匹配的素材<br>试试其他名称</div>';
@@ -3320,20 +3325,18 @@ function renderSources() {
     const node = document.createElement('div');
     node.className = 'src';
     node.dataset.id = source.id;
-    node.tabIndex = 0;
-    node.setAttribute('role', 'button');
-    node.setAttribute('aria-label', '选择素材：' + source.name);
-    node.addEventListener('keydown', event => { if (event.target !== node) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); node.click(); } });
+    node.setAttribute('role', 'group');
+    node.setAttribute('aria-label', '素材：' + source.name);
     node.innerHTML =
       '<div class="thumb"><span class="dur">' + (source.kind==='image'?'图片':fmtLen(source.duration)) + '</span></div>' +
       '<div><div class="n" title="' + escapeHtml(source.name) + '">' + escapeHtml(source.name) + '</div>' +
         '<div class="m">' + (source.width && source.height ? source.width + '×' + source.height : '') +
         (source.kind === 'image' ? ' · 图片' : source.kind==='audio' ? '音频' : source.el ? ' · 视频' : ' · 无预览') + '</div></div>' +
       '<div class="ops">' + (source.generatedSpeech?'<button class="icon-btn" data-act="download" title="下载配音原文件">↓</button>':'') +
-        '<button class="icon-btn" data-act="add" title="加到时间线">' +
+        '<button class="icon-btn" data-act="add" title="加到当前轨道末尾" aria-label="加到轨道：'+escapeHtml(source.name)+'">' +
           '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
           'stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>' +
-        '<button class="icon-btn danger" data-act="remove" title="移除素材">' +
+        '<button class="icon-btn danger" data-act="remove" title="移除未使用的素材" aria-label="移除素材：'+escapeHtml(source.name)+'">' +
           '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" ' +
           'stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5h6v2"/>' +
           '<path d="M6.5 7l.8 12.2A2 2 0 0 0 9.3 21h5.4a2 2 0 0 0 2-1.8L17.5 7"/></svg></button>' +
@@ -3342,6 +3345,30 @@ function renderSources() {
     box.appendChild(node);
   }
 }
+
+function addSourceToTimeline(id){
+  if(S.busy||S.rendering)return;
+  const source=sourceOfId(id);if(!source)return;
+  stopPlayback();commitHistory();
+  const clip=appendClip(source,0,source.kind==='image'?5:source.duration);
+  setSelection([{type:'clip',id:clip.id}]);S.time=clip.start;finishEdit();revealTrack(clip.trackId);
+  const scroll=$('#tlScroll'),left=clip.start*currentPps();
+  if(left<scroll.scrollLeft||left>scroll.scrollLeft+scroll.clientWidth-40)scroll.scrollLeft=Math.max(0,left-24);
+  return clip;
+}
+$('#sources').addEventListener('click',event=>{
+  const action=event.target.closest('[data-act]'),card=event.target.closest('.src');if(!action||!card||S.busy||S.rendering)return;
+  const source=sourceOfId(card.dataset.id);if(!source)return;
+  if(action.dataset.act==='add')return addSourceToTimeline(source.id);
+  if(action.dataset.act==='download'){
+    if(!source.url)return toast('原文件不可用，请重新关联素材',true);
+    const link=document.createElement('a');link.href=source.url;link.download=source.fileName||source.name;link.click();return;
+  }
+  if(action.dataset.act==='remove'){
+    if(S.clips.some(clip=>clip.sourceId===source.id))return toast('素材仍在时间线上，请先删除对应片段');
+    commitHistory();S.sources=S.sources.filter(item=>item!==source);retiredSources.add(source);renderSources();updateSummary();commitHistory();
+  }
+});
 
 function renderPanels() {
   const clip = S.selected && S.selected.type === 'clip' ? clipOfId(S.selected.id) : null;
@@ -3356,7 +3383,7 @@ function renderPanels() {
     const oyPct = Math.round((Number(clip.oy) || 0) * 100);
     const volPct = Math.round((clip.volume === undefined ? 1 : Number(clip.volume)) * 100);
     $('#cpScale').value = scalePct;
-    $('#cpScaleVal').textContent = scalePct + '%';
+    syncScaleInputs(clip);
     $('#cpOx').value = oxPct;
     $('#cpOxVal').textContent = oxPct + '%';
     $('#cpOy').value = oyPct;
@@ -3492,6 +3519,40 @@ $('#trackHeads').addEventListener('click',event=>{
   }
   stopPlayback();renderTimeline();updateSummary();seek(S.time);commitHistory();
 });
+function reorderTrack(id,targetId,after=false){
+  if(S.busy||S.rendering||id===targetId)return false;
+  const track=trackOf(id),target=trackOf(targetId);if(!track||!target||track.locked)return false;
+  const next=S.tracks.filter(item=>item!==track);next.splice(next.indexOf(target)+(after?1:0),0,track);
+  if(next.every((item,index)=>item===S.tracks[index]))return false;
+  stopPlayback();commitHistory();S.tracks=next;finishEdit();revealTrack(id);return true;
+}
+function startTrackReorder(event,id){
+  if(event.button!==0||S.busy||S.rendering)return;
+  if(trackOf(id)?.locked)return toast('先解锁轨道');
+  event.preventDefault();event.stopPropagation();
+  let targetId=id,after=false,dragged=false;
+  const clear=()=>{for(const head of $('#trackHeads').querySelectorAll('.lane-head'))head.classList.remove('reorder-before','reorder-after');};
+  const move=e=>{
+    if(!dragged&&Math.abs(e.clientY-event.clientY)<4)return;dragged=true;clear();
+    const head=document.elementFromPoint(e.clientX,e.clientY)?.closest('.lane-head');
+    if(!head||!$('#trackHeads').contains(head)){targetId=id;return;}
+    targetId=head.dataset.track;after=e.clientY>head.getBoundingClientRect().top+LANE_HEIGHT/2;
+    if(targetId!==id)head.classList.add(after?'reorder-after':'reorder-before');
+    const bounds=$('#trackHeads').getBoundingClientRect(),scroll=$('#tlScroll');
+    if(e.clientY<bounds.top+50)scroll.scrollTop=Math.max(0,scroll.scrollTop-16);
+    else if(e.clientY>bounds.bottom-20)scroll.scrollTop+=16;
+  };
+  const cleanup=()=>{clear();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',cancel);};
+  const up=()=>{cleanup();if(dragged)reorderTrack(id,targetId,after);};
+  const cancel=()=>cleanup();
+  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',cancel);
+}
+$('#trackHeads').addEventListener('pointerdown',event=>{const grip=event.target.closest('[data-reorder]');if(grip)startTrackReorder(event,grip.dataset.reorder);});
+$('#trackHeads').addEventListener('keydown',event=>{
+  const grip=event.target.closest('[data-reorder]');if(!grip||!event.altKey||!['ArrowUp','ArrowDown'].includes(event.key))return;
+  event.preventDefault();event.stopPropagation();const index=S.tracks.findIndex(t=>t.id===grip.dataset.reorder),down=event.key==='ArrowDown',target=S.tracks[index+(down?1:-1)];
+  if(target&&reorderTrack(grip.dataset.reorder,target.id,down))$('#trackHeads').querySelector('[data-reorder="'+grip.dataset.reorder+'"]').focus();
+});
 $('#tlScroll').addEventListener('scroll',()=>{$('#trackHeads').querySelector('.lane-head-list').style.transform='translateY('+(-$('#tlScroll').scrollTop)+'px)';});
 $('#trackAdder').addEventListener('change',()=>{const kind=$('#trackAdder').value;if(kind)addTrack(kind);$('#trackAdder').value='';});
 function startScrub(event) {
@@ -3549,7 +3610,7 @@ function splitAtPlayhead() {
 
 function addText() {
   const total = totalDuration();
-  if (!total) return toast('先导入视频、图片或音频', true);
+  if (!total) return toast('点击左侧素材上的「＋」，先添加到轨道', true);
   const start = clamp(S.time, 0, Math.max(0, total - 1));
   const end = clamp(start + Math.min(4, total - start), start + 0.5, total);
   const text = {
@@ -3786,7 +3847,18 @@ function bindClipRange(sel, key, labelSel, format) {
     drawAt(S.time);
   });
 }
-bindClipRange('#cpScale', 'scale', '#cpScaleVal', (v) => v + '%');
+function syncScaleInputs(clip){
+  if(!clip)return;const value=Math.round(animationValue(clip,'scale',clip.in+clamp(S.time-clip.start,0,clip.out-clip.in))*1000)/10;
+  for(const id of ['cpScale','cpScaleNumber'])if(document.activeElement!==$('#'+id))$('#'+id).value=value;
+}
+function setClipScale(value){
+  const clip=selectedClip();if(!clip||clipKind(clip)!=='visual'||isLocked(clip)||S.busy||S.rendering||value===''||!Number.isFinite(Number(value)))return false;
+  setAnimationValue(clip,'scale',Number(value)/100);syncScaleInputs(clip);drawAt(S.time);return true;
+}
+for(const id of ['cpScale','cpScaleNumber']){
+  $('#'+id).addEventListener('input',()=>setClipScale($('#'+id).value));
+  $('#'+id).addEventListener('change',()=>{const clip=selectedClip();if(clip){syncScaleInputs(clip);$('#'+id).value=Math.round(animationValue(clip,'scale',clip.in+clamp(S.time-clip.start,0,clip.out-clip.in))*1000)/10;}commitHistory();});
+}
 bindClipRange('#cpOx', 'ox', '#cpOxVal', (v) => v + '%');
 bindClipRange('#cpOy', 'oy', '#cpOyVal', (v) => v + '%');
 bindClipRange('#cpVol', 'volume', '#cpVolVal', (v) => v + '%');
@@ -4150,6 +4222,8 @@ document.addEventListener('keydown', (event) => {
     if (key === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); }
     else if (key === 'y') { event.preventDefault(); redo(); }
     else if (key === 'd') { event.preventDefault(); duplicateSelected(); }
+    else if (key === 'c') { if(copyTimelineSelection())event.preventDefault(); }
+    else if (key === 'v') { if(timelineClipboard){event.preventDefault();pasteTimelineSelection();} }
     else if(key==='a'){event.preventDefault();setSelection(allEntries().filter(e=>!isLocked(entryItem(e))));renderTimeline();renderPanels();}
     else if(key==='g'){event.preventDefault();groupSelection(event.shiftKey);}
     return;
@@ -4304,7 +4378,7 @@ function fitStageCanvas() {
 function stepFrame(direction) { if (S.playing) stopPlayback(); seek(S.time + direction / (Number(settings.fps) || 30)); }
 function openExport() {
   if (S.busy) return toast('素材正在导入，请稍候');
-  if (!totalDuration()) return toast('先导入视频、图片或音频');
+  if (!totalDuration()) return toast('点击左侧素材上的「＋」，先添加到轨道');
   stopPlayback(); commitHistory(); updateSummary();
   if (!$('#exportDialog').open) $('#exportDialog').showModal();
 }
@@ -4333,6 +4407,7 @@ $('#btnTryAsset').addEventListener('click', () => setLibraryTab(true));
 $('#btnUndo').addEventListener('click', undo);
 $('#btnRedo').addEventListener('click', redo);
 $('#btnDuplicate').addEventListener('click', duplicateSelected);
+$('#btnDuplicate').title='创建副本 (Ctrl+D)；Ctrl+C / Ctrl+V 可在播放头粘贴';
 $('#btnPrevFrame').addEventListener('click', () => stepFrame(-1));
 $('#btnNextFrame').addEventListener('click', () => stepFrame(1));
 $('#btnGuides').addEventListener('click', () => { const on = $('#stageWrap').classList.toggle('guides'); $('#btnGuides').classList.toggle('on', on); $('#btnGuides').setAttribute('aria-pressed', String(on)); });
@@ -4413,7 +4488,7 @@ function overlayAtPlayhead(){
   if(entries.some(entry=>entryItem(entry).start+delta<0))return toast('分组会移到零点之前，请后移播放头或先取消分组');
   stopPlayback();commitHistory();let track=S.tracks.find(t=>t.kind==='visual');
   if(track.id===clip.trackId||track.locked||track.hidden||S.clips.some(c=>c.id!==clip.id&&c.trackId===track.id&&c.start<S.time+clip.out-clip.in&&c.start+c.out-c.in>S.time)){
-    addTrack('visual',{history:false});track=trackOf(S.activeTrack);
+    addTrack('visual',{history:false,position:'top'});track=trackOf(S.activeTrack);
   }
   for(const entry of entries){const item=entryItem(entry);item.start+=delta;if(entry.type==='text')item.end+=delta;}
   clip.trackId=track.id;S.activeTrack=track.id;setSelection([{type:'clip',id:clip.id}]);finishEdit();revealTrack(track.id);toast('已移到上方画面轨，并对齐播放头；可撤销');
@@ -4530,8 +4605,8 @@ function validateSpeechDraft(){
 }
 function createSpeechTrack(kind,name){
   const prefix={audio:'a',text:'t'}[kind],n=Math.max(0,...S.tracks.filter(t=>t.kind===kind).map(t=>Number(t.id.slice(1))||0))+1;
-  const track={id:prefix+n,kind,name:name+n,muted:false,hidden:false};const index=S.tracks.findIndex(t=>t.kind===kind);
-  S.tracks.splice(index<0?S.tracks.length:index,0,track);return track;
+  const track={id:prefix+n,kind,name:nextTrackName(),muted:false,hidden:false};
+  S.tracks.push(track);return track;
 }
 function makeCaption(cue,trackId){
   const {w,h}=outputSize(),maxChars=Math.max(8,Math.floor(w/(h*.043)*.86));
@@ -4981,7 +5056,7 @@ function stickerTrack(trackId){
   const top=S.tracks.find(track=>track.kind==='visual');
   if(top&&!top.hidden&&!S.clips.some(clip=>clip.trackId===top.id&&!sourceOfId(clip.sourceId)?.stickerId))return top;
   const n=Math.max(0,...S.tracks.filter(track=>track.kind==='visual').map(track=>Number(track.id.slice(1))||0))+1;
-  const track={id:'v'+n,name:'贴纸'+n,kind:'visual',muted:false,hidden:false},index=S.tracks.findIndex(item=>item.kind==='visual');S.tracks.splice(index<0?S.tracks.length:index,0,track);return track;
+  const track={id:'v'+n,name:nextTrackName(),kind:'visual',muted:false,hidden:false},index=S.tracks.findIndex(item=>item.kind==='visual');S.tracks.splice(index<0?S.tracks.length:index,0,track);return track;
 }
 async function createSticker(id,{at=S.time,trackId}={}){
   if(S.rendering||S.busy)return;
@@ -5218,7 +5293,7 @@ async function applyProject(){
     // Restore image bridge handles when possible; browser-only rendering remains available.
     for(const source of pending.loaded.values())if(source.kind==='image'&&!source.bridgeId&&bridge.base){try{const c=document.createElement('canvas');c.width=source.width;c.height=source.height;c.getContext('2d').drawImage(source.img,0,0);const blob=await new Promise(resolve=>c.toBlob(resolve,'image/png'));source.bridgeId=(await uploadToBridge(bridge.base+'/overlay',blob)).id;}catch{}}
     stopPlayback();commitHistory();const restoredSources=[...new Set(pending.loaded.values())];for(const source of S.sources)if(!restoredSources.includes(source))retiredSources.add(source);for(const source of pending.owned)if(!restoredSources.includes(source))retiredSources.add(source);S.sources=restoredSources;S.clips=clips;S.texts=texts;S.tracks=data.tracks.map(track=>({id:track.id,kind:track.kind,name:String(track.name||track.id).slice(0,80),muted:Boolean(track.muted),hidden:Boolean(track.hidden),locked:Boolean(track.locked)}));
-    S.activeTrack=S.tracks.find(track=>track.kind==='visual').id;S.selected=null;S.time=clamp(Number(data.time)||0,0,totalDuration());
+    normalizeTrackNames();S.activeTrack=S.tracks.find(track=>track.kind==='visual').id;S.selected=null;S.time=clamp(Number(data.time)||0,0,totalDuration());
     const config=data.settings||{};for(const key of ['format','size','fps','quality','aspect'])if(typeof config[key]==='string')settings[key]=config[key];settings.name=String(config.name||'').slice(0,80);
     saveSettings();syncForm();$('#projectName').value=settings.name;for(const source of restoredSources)activateSource(source);renderSources();renderTimeline();renderPanels();updateSummary();await seek(S.time);commitHistory();
     pending.applied=true;$('#projectDialog').close();$('#projectRecovery').hidden=true;queueProjectDraft();toast('工程已载入，可撤销返回原来的编辑');
@@ -5335,6 +5410,33 @@ function deleteSelection(){
   for(const fx of transitionItems())if(ids.has(fx.clip.id)||ids.has(fx.from?.id))removeTransition(fx,{restorePosition:false});
   S.clips=S.clips.filter(i=>!ids.has(i.id));S.texts=S.texts.filter(i=>!ids.has(i.id));setSelection([]);finishEdit();
 }
+let timelineClipboard=null;
+function copyTimelineSelection(){
+  if(S.busy||S.rendering)return false;
+  const entries=editableEntries();if(!entries.length)return false;
+  const ids=new Set(entries.map(e=>e.id)),items=entries.map(entry=>{
+    const item=structuredClone(entryItem(entry));
+    if(entry.type==='clip')for(const next of S.clips)if(next.transitionIn?.fromId===item.id&&!ids.has(next.id))item.fadeOut=next.transitionIn.beforeFadeOut||0;
+    return {type:entry.type,item,kind:entry.type==='text'?'text':clipKind(item),source:entry.type==='clip'?sourceOfId(item.sourceId):null};
+  });
+  timelineClipboard={items,start:Math.min(...items.map(e=>e.item.start))};toast('已复制 '+items.length+' 项，移动播放头后按 Ctrl+V 粘贴');return true;
+}
+function pasteTimelineSelection(){
+  if(!timelineClipboard||S.busy||S.rendering)return false;
+  const {items,start}=timelineClipboard;if(items.some(e=>e.type==='clip'&&!S.sources.includes(e.source)))return toast('复制的素材已不在当前工程，请重新复制',true);
+  const oneTrack=new Set(items.map(e=>e.item.trackId)).size===1,preferred=trackOf(S.activeTrack),targets=new Map();
+  for(const entry of items){const track=oneTrack&&preferred?.kind===entry.kind?preferred:trackOf(entry.item.trackId);if(track?.locked)return toast('目标轨道已锁定，请先解锁');targets.set(entry.item.trackId,track);}
+  stopPlayback();commitHistory();const offset=Math.max(0,S.time)-start,ids=new Map(),groups=new Map(),copies=[];
+  for(const entry of items)ids.set(entry.item.id,(entry.type==='text'?'t':'c')+(++S.seq));
+  for(const entry of items){
+    let track=targets.get(entry.item.trackId);if(!track){track=compatibleTrack(entry.kind);targets.set(entry.item.trackId,track);}
+    const item=structuredClone(entry.item);item.id=ids.get(item.id);item.trackId=track.id;item.start+=offset;if(entry.type==='text')item.end+=offset;
+    if(item.groupId){if(!groups.has(item.groupId))groups.set(item.groupId,nextGroupId());item.groupId=groups.get(item.groupId);}
+    if(item.transitionIn?.fromId){if(ids.has(item.transitionIn.fromId)){item.transitionIn.fromId=ids.get(item.transitionIn.fromId);if(Number.isFinite(item.transitionIn.originalStart))item.transitionIn.originalStart+=offset;}else{item.fadeIn=item.transitionIn.beforeFadeIn||0;delete item.transitionIn;}}
+    (entry.type==='text'?S.texts:S.clips).push(item);copies.push({type:entry.type,id:item.id});
+  }
+  setSelection(copies);S.activeTrack=entryItem(copies[0]).trackId;finishEdit();revealTrack(S.activeTrack);toast('已粘贴到播放头，可撤销');return true;
+}
 function duplicateSelection(){
   const entries=editableEntries();if(!entries.length)return;
   stopPlayback();commitHistory();const start=Math.min(...entries.map(e=>entryItem(e).start)),end=Math.max(...entries.map(e=>{const i=entryItem(e);return e.type==='text'?i.end:i.start+i.out-i.in;})),copies=[],groups=new Map(),ids=new Map();
@@ -5436,7 +5538,8 @@ function refreshKeyframeInspector(){
   $('#kfValue').min=ANIMATION_LIMITS[key][0]*100;$('#kfValue').max=ANIMATION_LIMITS[key][1]*100;
   $('#btnKfRemove').disabled=!points.some(p=>Math.abs(p.time-time)<.001)||isLocked(clip);
   const signature=clip.id+':'+key+JSON.stringify(points);if(refreshKeyframeInspector.signature!==signature){refreshKeyframeInspector.signature=signature;$('#kfPoints').innerHTML=points.filter(p=>p.time>=clip.in&&p.time<=clip.out).map(p=>'<button class="kf-point" data-time="'+p.time+'" title="定位关键帧">◆ '+fmt(p.time-clip.in)+' · '+Math.round(p.value*100)+'%</button>').join('')||'<span class="note">先在播放头处添加 ◆，再移动播放头调整数值。</span>';}
-  for(const [id,property,label]of [['cpScale','scale','cpScaleVal'],['cpOx','ox','cpOxVal'],['cpOy','oy','cpOyVal'],['cpOpacity','opacity','cpOpacityVal'],['cpVol','volume','cpVolVal']])if(document.activeElement!==$('#'+id)){const v=Math.round(animationValue(clip,property,time)*100);$('#'+id).value=v;$('#'+label).textContent=v+'%';}
+  syncScaleInputs(clip);
+  for(const [id,property,label]of [['cpOx','ox','cpOxVal'],['cpOy','oy','cpOyVal'],['cpOpacity','opacity','cpOpacityVal'],['cpVol','volume','cpVolVal']])if(document.activeElement!==$('#'+id)){const v=Math.round(animationValue(clip,property,time)*100);$('#'+id).value=v;$('#'+label).textContent=v+'%';}
 }
 function editKeyframe(action){
   const clip=selectedClip();if(!clip||isLocked(clip)||S.rendering)return;stopPlayback();commitHistory();const key=$('#kfProperty').value||'scale',time=clip.in+clamp(S.time-clip.start,0,clip.out-clip.in);
