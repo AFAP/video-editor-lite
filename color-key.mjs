@@ -11,11 +11,8 @@ export function normalizeColorKey(value) {
   return {mode,color:presets[mode]||color.toLowerCase(),similarity,blend};
 }
 
-/** RGB distance mask, multiplied by existing alpha to preserve transparent images. */
+/** FFmpeg's native RGB-distance key; the timeline renderer preserves source alpha separately. */
 export function colorKeyFilter(value) {
   const key=normalizeColorKey(value);if(!key)return '';
-  const rgb=key.color.slice(1).match(/../g).map(hex=>parseInt(hex,16));
-  const distance=`sqrt(${rgb.map((channel,i)=>`pow(${['r','g','b'][i]}(X,Y)-${channel},2)`).join('+')})/sqrt(195075)`;
-  const mask=key.blend?`clip(((${distance})-${key.similarity})/${key.blend},0,1)`:`gt(${distance},${key.similarity})`;
-  return `geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(${mask})'`;
+  return `colorkey=0x${key.color.slice(1)}:${key.similarity}:${key.blend}`;
 }

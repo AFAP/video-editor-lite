@@ -15,10 +15,10 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
   const args=['-hide_banner','-loglevel','error','-stats','-stats_period','0.3','-nostdin','-y'];
   for(const clip of job.clips){
     const duration=clip.out-clip.in;
-    if(clip.kind==='image') args.push('-loop','1','-t',decimal(duration),'-i',clip.path);
+    if(clip.kind==='image') args.push('-loop','1','-framerate',String(job.fps),'-t',decimal(duration),'-i',clip.path);
     else args.push('-ss',decimal(clip.in),'-t',decimal(duration),'-i',clip.path);
   }
-  for(const text of job.texts)args.push('-loop','1','-t',decimal(total),'-i',overlays.get(text.id).path);
+  for(const text of job.texts)args.push('-loop','1','-framerate',String(job.fps),'-t',decimal(total),'-i',overlays.get(text.id).path);
   const W=job.width,H=job.height;
   const filters=[`color=c=black:s=${W}x${H}:r=${job.fps}:d=${decimal(total)},setsar=1[base]`];
   let video='base';
@@ -31,7 +31,6 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
     const y=`${H}*(${keyframeExpression(clip,'oy',`t-${decimal(clip.start)}`,bounded(clip.oy,-.5,.5))})`;
     const enter=transition(clip.transitionIn,duration),leave=transition(clip.transitionOut,duration),effects=[];
     const keyFilter=colorKeyFilter(clip.colorKey);
-    if(keyFilter)effects.push(keyFilter);
     const p=`clip(T/${decimal(enter.duration)},0,1)`,q=`clip((T-${decimal(duration-leave.duration)})/${decimal(leave.duration)},0,1)`;
     if(enter.type==='fade')effects.push(`fade=t=in:st=0:d=${decimal(enter.duration)}:alpha=1`);
     if(leave.type==='fade')effects.push(`fade=t=out:st=${decimal(duration-leave.duration)}:d=${decimal(leave.duration)}:alpha=1`);
@@ -42,10 +41,25 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
     const progress=`clip((t-${decimal(clip.start)})/${decimal(enter.duration)},0,1)`,outProgress=`clip((t-${decimal(clip.start+duration-leave.duration)})/${decimal(leave.duration)},0,1)`;
     let move='';if(enter.type==='slideleft')move+=`+W*(1-${progress})`;if(enter.type==='slideright')move+=`-W*(1-${progress})`;
     if(leave.type==='slideleft')move+=`-W*${outProgress}`;if(leave.type==='slideright')move+=`+W*${outProgress}`;
+    // Fit and zoom in one resample instead of first enlarging every layer to output resolution.
     filters.push(`[${index}:v]trim=duration=${decimal(duration)},setpts=PTS-STARTPTS,`+
-      `scale=${W}:${H}:force_original_aspect_ratio=decrease,`+
-      `scale=w='max(2,trunc(iw*(${scaleExpr})/2)*2)':h='max(2,trunc(ih*(${scaleExpr})/2)*2)':eval=frame,`+
-      `setsar=1,fps=${job.fps},format=rgba,colorchannelmixer=aa=${clip.keyframes?.opacity?.length?1:decimal(opacity)},${effects.length?effects.join(',')+',':''}setpts=PTS+${decimal(clip.start)}/TB[layer${index}]`);
+      `scale=w='max(2,trunc(iw*min(${W}/iw,${H}/ih)*(${scaleExpr})/2)*2)':h='max(2,trunc(ih*min(${W}/iw,${H}/ih)*(${scaleExpr})/2)*2)':eval=${clip.keyframes?.scale?.length?'frame':'init'},`+
+      `setsar=1,fps=${job.fps},format=rgba[scaled${index}]`);
+    let prepared=`scaled${index}`;
+    if(keyFilter){
+      prepared=`keyed${index}`;
+      if(clip.hasAlpha===false&&clip.kind!=='image')filters.push(`[scaled${index}]${keyFilter}[${prepared}]`);
+      else{
+        // Native colorkey overwrites alpha. Multiply its mask by source alpha before reattaching it.
+        filters.push(`[scaled${index}]split=3[keyRgb${index}][keySource${index}][keyMask${index}]`,
+          `[keySource${index}]alphaextract[sourceAlpha${index}]`,
+          `[keyMask${index}]${keyFilter},alphaextract[keyAlpha${index}]`,
+          `[sourceAlpha${index}][keyAlpha${index}]blend=all_mode=multiply[alpha${index}]`,
+          `[keyRgb${index}][alpha${index}]alphamerge[${prepared}]`);
+      }
+    }
+    if(!clip.keyframes?.opacity?.length&&opacity!==1)effects.unshift(`colorchannelmixer=aa=${decimal(opacity)}`);
+    filters.push(`[${prepared}]${effects.length?effects.join(',')+',':''}setpts=PTS+${decimal(clip.start)}/TB[layer${index}]`);
     const next='composite'+index;
     filters.push(`[${video}][layer${index}]overlay=x='(W-w)/2+${x}${move}':y='(H-h)/2+${y}':`+
       `enable='gte(t,${decimal(clip.start)})*lt(t,${decimal(clip.start+duration)})':eof_action=pass:repeatlast=0[${next}]`);

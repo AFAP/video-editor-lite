@@ -155,6 +155,7 @@ async function probe(file) {
     width: Number(video?.width) || 0,
     height: Number(video?.height) || 0,
     hasAudio: Boolean(audio),
+    hasAlpha: video?.pix_fmt ? /^(?:yuva|gbrap|rgba|bgra|argb|abgr|ya|ayuv|vuya|pal8)/i.test(video.pix_fmt)||Number(video.tags?.alpha_mode)===1 : undefined,
   };
 }
 
@@ -430,6 +431,7 @@ const server = createServer(async (req, res) => {
         width: meta.width || 0,
         height: meta.height || 0,
         hasAudio: meta.hasAudio !== false,
+        hasAlpha: meta.hasAlpha,
       };
       uploads.set(id, record);
       log(`收到 ${name} (${(info.size / 1048576).toFixed(1)}MB, ${clock(record.duration)})`);
@@ -494,6 +496,7 @@ const server = createServer(async (req, res) => {
           in: isImage ? 0 : inPoint,
           out: isImage ? outPoint - inPoint : outPoint,
           hasAudio: isImage ? false : source.hasAudio,
+          hasAlpha: isImage ? true : source.hasAlpha,
           scale: Number(clip.scale) || 1,
           ox: Number(clip.ox) || 0,
           oy: Number(clip.oy) || 0,

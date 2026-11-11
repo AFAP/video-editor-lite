@@ -19,7 +19,7 @@ test('real FFmpeg removes green and black backgrounds while retaining transforms
     for(const [mode,color]of [['green','0x00ff00'],['black','black']]){
       const foreground=join(folder,mode+'.mp4'),outPath=join(folder,mode+'-keyed.mp4');
       await run(ffmpeg,['-v','error','-y','-f','lavfi','-i',`color=c=${color}:s=160x96:r=24:d=1.5`,'-vf','drawbox=x=16:y=12:w=48:h=24:color=red:t=fill','-c:v','libx264','-crf','10','-pix_fmt','yuv420p',foreground]);
-      await renderTimeline({clips:[{kind:'image',path:base,in:0,out:1.5,start:0,layer:0},{kind:'video',path:foreground,in:0,out:1.5,start:0,layer:1,scale:.75,ox:.05,opacity:.5,colorKey:{mode},transitionIn:{type:'fade',duration:.2}}],texts:[],width:160,height:96,fps:24,preset:'ultrafast',crf:10,outPath,duration:1.5,progress:0},{ffmpeg,run,overlays:new Map(),work:folder});
+      await renderTimeline({clips:[{kind:'image',path:base,in:0,out:1.5,start:0,layer:0},{kind:'video',path:foreground,in:0,out:1.5,start:0,layer:1,hasAlpha:false,scale:.75,ox:.05,opacity:.5,colorKey:{mode},transitionIn:{type:'fade',duration:.2}}],texts:[],width:160,height:96,fps:24,preset:'ultrafast',crf:10,outPath,duration:1.5,progress:0},{ffmpeg,run,overlays:new Map(),work:folder});
       const background=pixel(outPath,130,74),subject=pixel(outPath,52,28),early=pixel(outPath,52,28,.0833);
       assert.ok(background[2]>230&&background[0]<15&&background[1]<15,mode+' background reveals lower blue track: '+background);
       assert.ok(subject[0]>105&&subject[0]<150&&subject[2]>105&&subject[2]<150,'transformed subject keeps opacity: '+subject);
@@ -35,5 +35,9 @@ test('real FFmpeg removes green and black backgrounds while retaining transforms
     const alpha=pixel(outPath,30,22),soft=pixel(outPath,106,22);
     assert.ok(alpha[0]>110&&alpha[0]<145&&alpha[2]>110&&alpha[2]<145,'original half-transparent foreground is preserved: '+alpha);
     assert.ok(soft[1]>45&&soft[1]<80&&soft[2]>145&&soft[2]<190,'soft edge has fractional alpha: '+soft);
+    const alphaVideo=join(folder,'alpha.mov'),videoOutput=join(folder,'alpha-video-keyed.mp4');
+    await run(ffmpeg,['-v','error','-y','-loop','1','-framerate','24','-i',image,'-t','1','-c:v','qtrle','-pix_fmt','argb',alphaVideo]);
+    await renderTimeline({clips:[{kind:'image',path:base,in:0,out:1,start:0,layer:0},{kind:'video',path:alphaVideo,in:0,out:1,start:0,layer:1,hasAlpha:true,colorKey:{mode:'green',similarity:.1,blend:.2}}],texts:[],width:160,height:96,fps:24,preset:'ultrafast',crf:10,outPath:videoOutput,duration:1,progress:0},{ffmpeg,run,overlays:new Map(),work:folder});
+    const videoAlpha=pixel(videoOutput,30,22);assert.ok(videoAlpha[0]>110&&videoAlpha[0]<145&&videoAlpha[2]>110&&videoAlpha[2]<145,'transparent video retains original alpha: '+videoAlpha);
   }finally{await rm(folder,{recursive:true,force:true,maxRetries:3,retryDelay:100});}
 });
