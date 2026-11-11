@@ -13,7 +13,7 @@
 
 **Try online:** [Open the browser editor](https://afap.github.io/video-editor-lite/), with no download or installation. Media is processed locally and exported through browser recording. FFmpeg and AI speech are available in the local edition.
 
-**Just open it:** Download the project and open `index.html` in your browser. Import your media and start editing. No Node.js, FFmpeg, or internet connection is required; local editing and built-in assets work offline.
+**Just open it:** Download the project and open `index.html` in your browser. Import media into the library, then click its “+” button to add it to a track. No Node.js, FFmpeg, or internet connection is required; local editing and built-in assets work offline.
 
 Browser export records in real time and requires keeping the page in the foreground. The output format depends on browser support and may be WebM.
 
