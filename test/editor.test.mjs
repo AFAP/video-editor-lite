@@ -80,7 +80,7 @@ function editor({storageBlocked = false, tracks = [], page = {}, browser = {}} =
   js = js.replace(/\}\)\(\);\s*$/, `globalThis.testApi = { S, settings, bridge, history,
     appendClip, addSourceToTimeline, importPickedFiles, reorderTrack, normalizeTrackNames, setClipTransform, syncTransformInputs, refreshKeyframeInspector, copyTimelineSelection, pasteTimelineSelection, layout, outputSize, splitAtPlayhead, duplicateSelected,
     deleteSelected, commitHistory, undo, redo, readSettings, updateOutputNote, togglePlay,
-    activeRows, visualRows, totalDuration, addTrack, moveClipTo, mediaForClip, clipVolume, mediaKind,
+    activeRows, visualRows, totalDuration, addTrack, moveClipTo, mediaForClip, preloadUpcomingMedia, snapStart, clipVolume, mediaKind,
     normalizeColorKey,keyPixels,setClipColorKey,syncColorKeyInspector,overlayAtPlayhead,startExport,
     parseSrt,serializeSrt,setSpeechDraft,speechState,validateSpeechDraft,applySpeechCaptions,
     buildProject,validateProject,prepareProject,applyProject,projectState,connectPreviousClip,transitionState,
@@ -852,4 +852,27 @@ test('inactive media does not change current playback or start early', async () 
     await untilFrame(frames);
     assert.equal(api.S.time,60); assert.equal(first.currentTime,60); assert.equal(next.currentTime,0);assert.deepEqual(next.playStarts,[]);
   } finally { await pausePlayback(api,frames,playback); }
+});
+
+test('playback primes the next independent decoder without early playback or discarding its first frame at the cut',async()=>{
+  const {api,frames,clock}=editor(),original=Object.assign(playbackMedia(0),{cloneNode(){return Object.assign(playbackMedia(0),{load(){},remove(){}});}});
+  const source={id:'primed',kind:'video',duration:40,el:original};api.S.sources.push(source);
+  const first=api.appendClip(source,0,1),next=api.appendClip(source,20,21);api.S.time=.2;
+  const playback=api.togglePlay();
+  try{
+    await untilFrame(frames);await api.preloadUpcomingMedia(api.S.time);
+    const active=api.mediaForClip(first),upcoming=api.mediaForClip(next);
+    assert.equal(active.el.currentTime,.2);assert.equal(upcoming.el.currentTime,20);assert.deepEqual(upcoming.el.playStarts,[]);
+    assert.equal(upcoming.prepared,true);assert.equal(original.currentTime,0,'source decoder is untouched');
+    clock.time+=810;frames.shift()();for(let n=0;n<20&&!upcoming.active;n++)await Promise.resolve();
+    assert.ok(Math.abs(api.S.time-1.01)<1e-9);assert.deepEqual(upcoming.el.seekTargets,[20],'no second seek discards the primed frame at the boundary');assert.deepEqual(upcoming.el.playStarts,[20]);
+  }finally{await pausePlayback(api,frames,playback);}
+});
+
+test('snapping uses the nearest edge and retains fractional cut times without rounding gaps',()=>{
+  const {api}=editor(),{source,clip}=seed(api);clip.in=0;clip.out=.737777;api.S.pps=100;api.S.time=.7;
+  const next=api.appendClip(source,0,2);assert.equal(next.start,.737777,'append preserves the exact preceding end');
+  next.start=3;const snapped=api.snapStart(.738,next.id);assert.equal(snapped,.737777,'nearest edge wins over a nearby playhead');
+  assert.equal(api.moveClipTo(next,snapped,'v1'),true);assert.equal(next.start,.737777);
+  assert.equal(api.activeRows(.73776)[0].clip.id,clip.id);assert.equal(api.activeRows(.737777)[0].clip.id,next.id);assert.equal(api.activeRows(.73779)[0].clip.id,next.id);
 });

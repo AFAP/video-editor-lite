@@ -2797,7 +2797,7 @@ function appendClip(source, inPoint, outPoint, trackId) {
   if(track.locked){addTrack(kind);track=trackOf(S.activeTrack);}
   const end = Math.max(0,...layout().filter(row => row.clip.trackId === track.id).map(row => row.end));
   const clip = {
-    id:'c' + (++S.seq), sourceId:source.id, trackId:track.id, start:Math.round(end*100)/100,
+    id:'c' + (++S.seq), sourceId:source.id, trackId:track.id, start:end,
     in:Math.round(clamp(inPoint,0,Math.max(0,source.duration-MIN_CLIP))*100)/100,
     out:Math.round(clamp(outPoint,0,source.duration)*100)/100,
     scale:1, ox:0, oy:0, opacity:1, volume:1, muted:false, fadeIn:0, fadeOut:0,
@@ -2829,7 +2829,7 @@ function revealTrack(id) {
 function moveClipTo(clip,start,trackId) {
   const track=trackOf(trackId);
   if (!track || track.locked || isLocked(clip) || track.kind!==clipKind(clip)) return false;
-  clip.start=Math.round(Math.max(0,start)*100)/100; clip.trackId=track.id;
+  clip.start=Math.max(0,Number(start)||0); clip.trackId=track.id;
   S.activeTrack=track.id; return true;
 }
 function trackOptions(kind) {
@@ -3159,6 +3159,28 @@ function clearUnusedMedia() {
     clipMedia.delete(id);
   }
 }
+function preloadUpcomingMedia(time){
+  const tasks=[];
+  for(const row of layout()){
+    if(!trackEnabled(row.clip.trackId)||row.start<=time||row.start>time+1)continue;
+    const source=sourceOfId(row.clip.sourceId),media=mediaForClip(row.clip);
+    // A fallback decoder shared with the source must never seek ahead of the active clip.
+    if(!media||media.el===source?.el||media.active||media.starting)continue;
+    if(media.preparing){tasks.push(media.preparing);continue;}
+    if(media.prepared&&media.preparedAt===row.clip.in)continue;
+    const target=row.clip.in;
+    media.preparing=(async()=>{
+      try{
+        if(media.el.readyState<1&&!await loadMeta(media.el))return;
+        await seekTo(media.el,target);
+        const ready=await waitFrame(media.el,2500);
+        media.prepared=ready;media.preparedAt=target;
+      }catch{media.prepared=false;}
+      finally{media.preparing=null;}
+    })();tasks.push(media.preparing);
+  }
+  return Promise.all(tasks);
+}
 function clipVolume(clip,elapsed,duration) {
   if (clip.muted || trackOf(clip.trackId)?.muted) return 0;
   let gain=clamp(animationValue(clip,'volume',clip.in+elapsed),0,2);
@@ -3202,7 +3224,13 @@ async function startMediaRow(row,time,token) {
   const media=mediaForClip(row.clip); if(!media||media.starting)return;
   media.starting=true; audioNodeOf(media);
   try {
-    await seekTo(media.el,row.clip.in+Math.max(0,time-row.start));
+    if(media.preparing)await media.preparing;
+    const target=row.clip.in+Math.max(0,time-row.start);
+    const ready=media.prepared&&media.el.readyState>=2&&!media.el.seeking&&Math.abs(media.el.currentTime-target)<=.05;
+    media.prepared=false;
+    // Keep the primed first frame: seeking a few milliseconds forward would discard it at the cut.
+    if(!ready)await seekTo(media.el,target);
+    if(media.el.readyState<2)await waitFrame(media.el,2500);
     if(!S.playing||token!==playToken||!activeRows(S.time).some(r=>r.clip.id===row.clip.id))return;
     media.el.playbackRate=1; await media.el.play();
     if(!S.playing||token!==playToken){media.el.pause();return;}
@@ -3211,6 +3239,7 @@ async function startMediaRow(row,time,token) {
   finally {media.starting=false;}
 }
 function syncPlaybackMedia(time,token) {
+  void preloadUpcomingMedia(time);
   const rows=activeRows(time),active=new Set(rows.map(row=>row.clip.id));
   for(const [id,media] of clipMedia) if(!active.has(id)&&media.active){media.el.pause();media.active=false;if(media.gain)media.gain.gain.value=0;}
   for(const row of rows) {
@@ -3226,6 +3255,7 @@ async function togglePlay({end=Infinity}={}) {
   ensureAudio();if(monitor)monitor.gain.value=S.rendering?0:1;
   if(S.time>=total-.001)S.time=0;
   S.playing=true;updatePlayButton();const token=++playToken;
+  void preloadUpcomingMedia(S.time);
   await Promise.all(activeRows(S.time).map(row=>startMediaRow(row,S.time,token)));
   if(!S.playing||token!==playToken)return;
   const origin=S.time,started=performance.now();
@@ -3483,7 +3513,7 @@ function selectText(id) {
 
 function snapStart(value,id) {
   const points=[0,S.time,...layout().filter(row=>row.clip.id!==id).flatMap(row=>[row.start,row.end])];
-  const match=points.find(point=>Math.abs(point-value)*currentPps()<8);return Math.max(0,match??value);
+  const match=points.filter(point=>Math.abs(point-value)*currentPps()<8).sort((a,b)=>Math.abs(a-value)-Math.abs(b-value))[0];return Math.max(0,match??value);
 }
 $('#ruler').addEventListener('pointerdown',startScrub);
 $('#trackV').addEventListener('pointerdown',event=>{
