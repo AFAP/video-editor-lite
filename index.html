@@ -1935,7 +1935,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
 .lane-select small{font:8px Consolas,monospace;color:var(--faint)}
 .track-grip{flex:none;padding:2px;border:0;background:none;color:var(--faint);cursor:grab;touch-action:none}
 .track-grip:active{cursor:grabbing}.lane-head.reorder-before{box-shadow:inset 0 2px var(--accent)}.lane-head.reorder-after{box-shadow:inset 0 -2px var(--accent)}
-.scale-number{display:flex;align-items:center;gap:3px;flex:none}.fld .scale-number input{width:62px;flex:none;text-align:right}
+.transform-number{display:flex;align-items:center;gap:3px;flex:none}.fld .transform-number input{width:62px;flex:none;text-align:right}
 .lane-control{flex:none;width:17px;height:20px;padding:0;border:0;background:none;border-radius:3px;color:var(--faint);font-size:9px}
 .lane-control:hover{background:var(--panel3);color:var(--text)}.lane-control.on{color:var(--danger);background:#f1897f15}
 .timeline-lanes{position:absolute;top:30px;left:0;right:0;min-width:0}
@@ -2067,10 +2067,10 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
         <div class="fld"><span>容差</span><input type="range" id="cpKeySimilarity" min="1" max="100" value="30" aria-label="去背景容差"><b class="val" id="cpKeySimilarityVal">30%</b></div>
         <div class="fld"><span>柔边</span><input type="range" id="cpKeyBlend" min="0" max="100" value="8" aria-label="去背景边缘柔化"><b class="val" id="cpKeyBlendVal">8%</b></div></div>
         <button class="btn sm" id="btnOverlayAtPlayhead">叠加到播放头</button><p class="note" id="colorKeyNote">把播放头放到底片要叠加的位置，点击按钮将本片段移到上层。去掉的颜色会显示下方画面。</p>
-        </details><details open id="transitionControls"><summary>片头 / 片尾效果</summary><div class="fld"><span>入场</span><select id="clipTransitionIn" aria-label="画面入场转场"><option value="none">无</option><option value="fade">叠化 / 淡入淡出</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>出场</span><select id="clipTransitionOut" aria-label="画面出场转场"><option value="none">无</option><option value="fade">叠化 / 淡入淡出</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>秒数</span><input id="clipTransitionDuration" type="number" min="0.01" max="5" step="0.1" value="0.5" aria-label="转场时长"></div><button class="btn sm" id="btnOpenTransitions">打开转场素材库</button><button class="btn sm" id="btnConnectTransition">与前一片段衔接</button><p class="note">衔接会移动当前片段，与前段重叠；其他轨道不移动。可以撤销。</p></details><details open id="visualControls"><summary>画面变换</summary><div class="fld"><span>不透明</span><input type="range" id="cpOpacity" min="0" max="100" step="1" aria-label="画面不透明度"><b class="val" id="cpOpacityVal">100%</b></div>
-        <div class="fld"><span>缩放</span><input type="range" id="cpScale" min="10" max="300" step="0.1" aria-label="画面缩放"><label class="scale-number"><input type="number" id="cpScaleNumber" min="10" max="300" step="0.1" value="100" aria-label="画面缩放百分比"><span>%</span></label></div>
-        <div class="fld"><span>水平</span><input type="range" id="cpOx" min="-50" max="50" step="1"><b class="val" id="cpOxVal">0%</b></div>
-        <div class="fld"><span>垂直</span><input type="range" id="cpOy" min="-50" max="50" step="1"><b class="val" id="cpOyVal">0%</b></div>
+        </details><details open id="transitionControls"><summary>片头 / 片尾效果</summary><div class="fld"><span>入场</span><select id="clipTransitionIn" aria-label="画面入场转场"><option value="none">无</option><option value="fade">叠化 / 淡入淡出</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>出场</span><select id="clipTransitionOut" aria-label="画面出场转场"><option value="none">无</option><option value="fade">叠化 / 淡入淡出</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>秒数</span><input id="clipTransitionDuration" type="number" min="0.01" max="5" step="0.1" value="0.5" aria-label="转场时长"></div><button class="btn sm" id="btnOpenTransitions">打开转场素材库</button><button class="btn sm" id="btnConnectTransition">与前一片段衔接</button><p class="note">衔接会移动当前片段，与前段重叠；其他轨道不移动。可以撤销。</p></details><details open id="visualControls"><summary>画面变换</summary><div class="fld"><span>不透明</span><input type="range" id="cpOpacity" min="0" max="100" step="0.1" aria-label="画面不透明度"><label class="transform-number"><input type="number" id="cpOpacityNumber" min="0" max="100" step="0.1" value="100" aria-label="画面不透明度百分比"><span>%</span></label></div>
+        <div class="fld"><span>缩放</span><input type="range" id="cpScale" min="10" max="300" step="0.1" aria-label="画面缩放"><label class="transform-number"><input type="number" id="cpScaleNumber" min="10" max="300" step="0.1" value="100" aria-label="画面缩放百分比"><span>%</span></label></div>
+        <div class="fld"><span>水平</span><input type="range" id="cpOx" min="-50" max="50" step="0.1" aria-label="画面水平偏移"><label class="transform-number"><input type="number" id="cpOxNumber" min="-50" max="50" step="0.1" value="0" aria-label="画面水平偏移百分比"><span>%</span></label></div>
+        <div class="fld"><span>垂直</span><input type="range" id="cpOy" min="-50" max="50" step="0.1" aria-label="画面垂直偏移"><label class="transform-number"><input type="number" id="cpOyNumber" min="-50" max="50" step="0.1" value="0" aria-label="画面垂直偏移百分比"><span>%</span></label></div>
         <button class="btn sm" id="cpReset" style="margin-top:6px">重置画面</button>
 
         </details><details open><summary>声音</summary>
@@ -3378,16 +3378,8 @@ function renderPanels() {
 
   $('#clipPanel').style.display = clip ? '' : 'none';
   if (clip) {
-    const scalePct = Math.round((Number(clip.scale) || 1) * 100);
-    const oxPct = Math.round((Number(clip.ox) || 0) * 100);
-    const oyPct = Math.round((Number(clip.oy) || 0) * 100);
     const volPct = Math.round((clip.volume === undefined ? 1 : Number(clip.volume)) * 100);
-    $('#cpScale').value = scalePct;
-    syncScaleInputs(clip);
-    $('#cpOx').value = oxPct;
-    $('#cpOxVal').textContent = oxPct + '%';
-    $('#cpOy').value = oyPct;
-    $('#cpOyVal').textContent = oyPct + '%';
+    syncTransformInputs(clip);
     $('#cpVol').value = volPct;
     $('#cpVolVal').textContent = volPct + '%';
     $('#cpMuted').checked = Boolean(clip.muted);
@@ -3847,20 +3839,20 @@ function bindClipRange(sel, key, labelSel, format) {
     drawAt(S.time);
   });
 }
-function syncScaleInputs(clip){
-  if(!clip)return;const value=Math.round(animationValue(clip,'scale',clip.in+clamp(S.time-clip.start,0,clip.out-clip.in))*1000)/10;
-  for(const id of ['cpScale','cpScaleNumber'])if(document.activeElement!==$('#'+id))$('#'+id).value=value;
+const TRANSFORM_CONTROLS=[['scale','cpScale'],['opacity','cpOpacity'],['ox','cpOx'],['oy','cpOy']];
+function transformPercent(clip,key){return Math.round(animationValue(clip,key,clip.in+clamp(S.time-clip.start,0,clip.out-clip.in))*1000)/10;}
+function syncTransformInputs(clip){
+  if(!clip)return;
+  for(const [key,prefix]of TRANSFORM_CONTROLS)for(const id of [prefix,prefix+'Number'])if(document.activeElement!==$('#'+id))$('#'+id).value=transformPercent(clip,key);
 }
-function setClipScale(value){
-  const clip=selectedClip();if(!clip||clipKind(clip)!=='visual'||isLocked(clip)||S.busy||S.rendering||value===''||!Number.isFinite(Number(value)))return false;
-  setAnimationValue(clip,'scale',Number(value)/100);syncScaleInputs(clip);drawAt(S.time);return true;
+function setClipTransform(key,value){
+  const clip=selectedClip();if(!clip||clipKind(clip)!=='visual'||isLocked(clip)||S.busy||S.rendering||!TRANSFORM_CONTROLS.some(control=>control[0]===key)||String(value).trim()===''||!Number.isFinite(Number(value)))return false;
+  setAnimationValue(clip,key,Number(value)/100);syncTransformInputs(clip);drawAt(S.time);return true;
 }
-for(const id of ['cpScale','cpScaleNumber']){
-  $('#'+id).addEventListener('input',()=>setClipScale($('#'+id).value));
-  $('#'+id).addEventListener('change',()=>{const clip=selectedClip();if(clip){syncScaleInputs(clip);$('#'+id).value=Math.round(animationValue(clip,'scale',clip.in+clamp(S.time-clip.start,0,clip.out-clip.in))*1000)/10;}commitHistory();});
+for(const [key,prefix]of TRANSFORM_CONTROLS)for(const id of [prefix,prefix+'Number']){
+  $('#'+id).addEventListener('input',()=>setClipTransform(key,$('#'+id).value));
+  $('#'+id).addEventListener('change',()=>{const clip=selectedClip();if(clip){syncTransformInputs(clip);$('#'+id).value=transformPercent(clip,key);}commitHistory();});
 }
-bindClipRange('#cpOx', 'ox', '#cpOxVal', (v) => v + '%');
-bindClipRange('#cpOy', 'oy', '#cpOyVal', (v) => v + '%');
 bindClipRange('#cpVol', 'volume', '#cpVolVal', (v) => v + '%');
 bindClipRange('#cpFadeIn', 'fadeIn', '#cpFadeInVal', (v) => Number(v).toFixed(1) + 's');
 bindClipRange('#cpFadeOut', 'fadeOut', '#cpFadeOutVal', (v) => Number(v).toFixed(1) + 's');
@@ -3925,10 +3917,7 @@ stage.addEventListener('pointerdown', (event) => {
     const p = toNorm(e);
     setAnimationValue(clip,'ox',clamp(origin.ox+(p.x-start.x),-.5,.5));
     setAnimationValue(clip,'oy',clamp(origin.oy+(p.y-start.y),-.5,.5));
-    $('#cpOx').value = Math.round(clip.ox * 100);
-    $('#cpOxVal').textContent = Math.round(clip.ox * 100) + '%';
-    $('#cpOy').value = Math.round(clip.oy * 100);
-    $('#cpOyVal').textContent = Math.round(clip.oy * 100) + '%';
+    syncTransformInputs(clip);
     drawAt(S.time);
   };
   const up = () => {
@@ -4449,12 +4438,11 @@ $('#tlResize').addEventListener('lostpointercapture', () => { resizeOrigin = nul
 $('#tlResize').addEventListener('keydown', e => { if (!['ArrowUp','ArrowDown'].includes(e.key)) return; e.preventDefault(); e.stopPropagation(); $('main').style.setProperty('--timeline-height',clamp($('.tl').offsetHeight+(e.key==='ArrowUp'?20:-20),190,Math.min(460,$('main').clientHeight-280))+'px'); renderTimeline(); });
 
 function refreshTrackInspector(clip,text,source) {
-  if(clip){$('#cpTrack').innerHTML=trackOptions(clipKind(clip));$('#cpTrack').value=clip.trackId;if(document.activeElement!==$('#cpAt'))$('#cpAt').value=clip.start.toFixed(2);$('#visualControls').hidden=clipKind(clip)==='audio';$('#cpOpacity').value=Math.round((clip.opacity??1)*100);$('#cpOpacityVal').textContent=Math.round((clip.opacity??1)*100)+'%';}
+  if(clip){$('#cpTrack').innerHTML=trackOptions(clipKind(clip));$('#cpTrack').value=clip.trackId;if(document.activeElement!==$('#cpAt'))$('#cpAt').value=clip.start.toFixed(2);$('#visualControls').hidden=clipKind(clip)==='audio';syncTransformInputs(clip);}
   if(text){$('#txTrack').innerHTML=trackOptions('text');$('#txTrack').value=text.trackId||'t1';}
 }
 $('#cpTrack').addEventListener('change',()=>{const clip=selectedClip();if(!clip)return;stopPlayback();moveClipTo(clip,clip.start,$('#cpTrack').value);renderTimeline();seek(S.time);});
 $('#cpAt').addEventListener('input',()=>{const clip=selectedClip();if(!clip)return;stopPlayback();moveClipTo(clip,Number($('#cpAt').value)||0,clip.trackId);renderTimeline();updateSummary();seek(S.time);});
-$('#cpOpacity').addEventListener('input',()=>{const clip=selectedClip();if(!clip)return;setAnimationValue(clip,'opacity',Number($('#cpOpacity').value)/100);$('#cpOpacityVal').textContent=$('#cpOpacity').value+'%';drawAt(S.time);});
 function syncColorKeyInspector(clip){
   const visual=clip&&clipKind(clip)==='visual';$('#colorKeyControls').hidden=!visual;if(!visual)return;
   if($('#colorKeyControls').dataset.clip!==clip.id){$('#colorKeyControls').dataset.clip=clip.id;$('#colorKeyControls').open=Boolean(clip.colorKey);}
@@ -5538,8 +5526,8 @@ function refreshKeyframeInspector(){
   $('#kfValue').min=ANIMATION_LIMITS[key][0]*100;$('#kfValue').max=ANIMATION_LIMITS[key][1]*100;
   $('#btnKfRemove').disabled=!points.some(p=>Math.abs(p.time-time)<.001)||isLocked(clip);
   const signature=clip.id+':'+key+JSON.stringify(points);if(refreshKeyframeInspector.signature!==signature){refreshKeyframeInspector.signature=signature;$('#kfPoints').innerHTML=points.filter(p=>p.time>=clip.in&&p.time<=clip.out).map(p=>'<button class="kf-point" data-time="'+p.time+'" title="定位关键帧">◆ '+fmt(p.time-clip.in)+' · '+Math.round(p.value*100)+'%</button>').join('')||'<span class="note">先在播放头处添加 ◆，再移动播放头调整数值。</span>';}
-  syncScaleInputs(clip);
-  for(const [id,property,label]of [['cpOx','ox','cpOxVal'],['cpOy','oy','cpOyVal'],['cpOpacity','opacity','cpOpacityVal'],['cpVol','volume','cpVolVal']])if(document.activeElement!==$('#'+id)){const v=Math.round(animationValue(clip,property,time)*100);$('#'+id).value=v;$('#'+label).textContent=v+'%';}
+  syncTransformInputs(clip);
+  if(document.activeElement!==$('#cpVol')){const v=Math.round(animationValue(clip,'volume',time)*100);$('#cpVol').value=v;$('#cpVolVal').textContent=v+'%';}
 }
 function editKeyframe(action){
   const clip=selectedClip();if(!clip||isLocked(clip)||S.rendering)return;stopPlayback();commitHistory();const key=$('#kfProperty').value||'scale',time=clip.in+clamp(S.time-clip.start,0,clip.out-clip.in);

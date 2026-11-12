@@ -78,7 +78,7 @@ function editor({storageBlocked = false, tracks = [], page = {}, browser = {}} =
   });
   let js = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   js = js.replace(/\}\)\(\);\s*$/, `globalThis.testApi = { S, settings, bridge, history,
-    appendClip, addSourceToTimeline, importPickedFiles, reorderTrack, normalizeTrackNames, setClipScale, copyTimelineSelection, pasteTimelineSelection, layout, outputSize, splitAtPlayhead, duplicateSelected,
+    appendClip, addSourceToTimeline, importPickedFiles, reorderTrack, normalizeTrackNames, setClipTransform, syncTransformInputs, refreshKeyframeInspector, copyTimelineSelection, pasteTimelineSelection, layout, outputSize, splitAtPlayhead, duplicateSelected,
     deleteSelected, commitHistory, undo, redo, readSettings, updateOutputNote, togglePlay,
     activeRows, visualRows, totalDuration, addTrack, moveClipTo, mediaForClip, clipVolume, mediaKind,
     normalizeColorKey,keyPixels,setClipColorKey,syncColorKeyInspector,overlayAtPlayhead,startExport,
@@ -517,9 +517,34 @@ test('scale can be typed with decimals, stays in sync with the slider, supports 
   const {api,elements}=editor();const {clip,source}=seed(api);source.kind='video';api.commitHistory();
   const field=elements.get('cpScaleNumber');field.value='145.5';field.listeners.input[0]();field.listeners.change[0]();assert.equal(clip.scale,1.455);assert.equal(elements.get('cpScale').value,145.5);
   api.undo();assert.equal(api.S.clips[0].scale,1);api.redo();assert.equal(api.S.clips[0].scale,1.455);
-  const current=api.S.clips[0];api.S.time=2;api.setAnimationValue(current,'scale',1,{force:true});assert.equal(api.setClipScale('175.2'),true);assert.ok(Math.abs(current.keyframes.scale[0].value-1.752)<1e-9);
-  const before=JSON.stringify(current);assert.equal(api.setClipScale(''),false);assert.equal(api.setClipScale('invalid'),false);assert.equal(JSON.stringify(current),before);
-  api.S.tracks[0].locked=true;assert.equal(api.setClipScale('200'),false);assert.equal(JSON.stringify(current),before);
+  const current=api.S.clips[0];api.S.time=2;api.setAnimationValue(current,'scale',1,{force:true});assert.equal(api.setClipTransform('scale','175.2'),true);assert.ok(Math.abs(current.keyframes.scale[0].value-1.752)<1e-9);
+  const before=JSON.stringify(current);assert.equal(api.setClipTransform('scale',''),false);assert.equal(api.setClipTransform('scale','invalid'),false);assert.equal(JSON.stringify(current),before);
+  api.S.tracks[0].locked=true;assert.equal(api.setClipTransform('scale','200'),false);assert.equal(JSON.stringify(current),before);
+});
+
+test('opacity and both position controls accept decimals and negatives, synchronize both directions, and survive save and undo',async()=>{
+  const {api,elements}=editor();const {clip,source}=seed(api);source.kind='video';api.commitHistory();
+  for(const [key,prefix,value]of [['opacity','cpOpacity',63.4],['ox','cpOx',-30.5],['oy','cpOy',28.8]]){
+    const field=elements.get(prefix+'Number');field.value=String(value);field.listeners.input[0]();field.listeners.change[0]();
+    assert.ok(Math.abs(clip[key]-value/100)<1e-9);assert.equal(Number(elements.get(prefix).value),value);
+    const slider=elements.get(prefix);slider.value=String(value+1);slider.listeners.input[0]();assert.equal(Number(field.value),value+1);
+    slider.value=String(value);slider.listeners.input[0]();slider.listeners.change[0]();
+  }
+  api.undo();assert.equal(api.S.clips[0].oy,0);api.redo();assert.ok(Math.abs(api.S.clips[0].oy-.288)<1e-9);
+  const project=api.buildProject();await api.prepareProject(project);await api.applyProject();
+  assert.equal(api.S.clips[0].opacity,.634);assert.equal(api.S.clips[0].ox,-.305);assert.ok(Math.abs(api.S.clips[0].oy-.288)<1e-9);
+});
+
+test('numeric transform edits follow keyframes, clamp bounds, protect locked tracks, and do not overwrite unfinished input',()=>{
+  const {api,elements,document}=editor();const {clip,source}=seed(api);source.kind='video';
+  clip.keyframes={opacity:[{time:1,value:1},{time:9,value:0}],ox:[{time:1,value:-.4},{time:9,value:.4}]};api.S.time=4;
+  const field=elements.get('cpOxNumber');document.activeElement=field;field.value='';api.syncTransformInputs(clip);assert.equal(field.value,'');assert.equal(elements.get('cpOpacityNumber').value,50);
+  field.value='-12.3';field.listeners.input[0]();assert.equal(field.value,'-12.3');assert.ok(Math.abs(api.animationValue(clip,'ox',5)+.123)<1e-9);
+  assert.equal(api.setClipTransform('opacity','0'),true);assert.equal(api.animationValue(clip,'opacity',5),0);
+  document.activeElement=null;api.S.time=0;api.refreshKeyframeInspector();assert.equal(elements.get('cpOpacityNumber').value,100);assert.equal(elements.get('cpOxNumber').value,-40);
+  assert.equal(api.setClipTransform('oy','999'),true);assert.equal(clip.oy,.5);assert.equal(api.setClipTransform('oy','-999'),true);assert.equal(clip.oy,-.5);
+  const before=JSON.stringify(clip);for(const value of ['',' ','invalid',NaN,Infinity])assert.equal(api.setClipTransform('ox',value),false);assert.equal(JSON.stringify(clip),before);
+  api.S.tracks[0].locked=true;for(const key of ['scale','opacity','ox','oy'])assert.equal(api.setClipTransform(key,'20'),false);assert.equal(JSON.stringify(clip),before);
 });
 
 test('copy and paste retain a snapshot of image/video settings and paste onto the active compatible track at the cursor',()=>{
