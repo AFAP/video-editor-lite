@@ -1,10 +1,13 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import * as os from 'node:os';
 import { keyframeExpression } from './animation.mjs';
 import { colorKeyFilter } from './color-key.mjs';
 
 const bounded = (value,min,max,fallback=0) => Number.isFinite(Number(value)) ? Math.min(max,Math.max(min,Number(value))) : fallback;
 const decimal = value => Number(value).toFixed(4);
+const filterThreads=Math.min(4,Math.max(1,os.availableParallelism?.()||os.cpus().length||1));
+const cacheStill=clip=>clip.kind==='image'&&!clip.keyframes?.scale?.length;
 const transition=(value,length)=>({type:['fade','wipeleft','wiperight','slideleft','slideright'].includes(value?.type)?value.type:'none',duration:bounded(value?.duration??.5,.01,Math.max(.01,length/2),Math.min(.5,Math.max(.01,length/2)))});
 
 /** Compose independent, timed layers over a black canvas and mix their audio. */
@@ -15,10 +18,13 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
   const args=['-hide_banner','-loglevel','error','-stats','-stats_period','0.3','-nostdin','-y'];
   for(const clip of job.clips){
     const duration=clip.out-clip.in;
-    if(clip.kind==='image') args.push('-loop','1','-framerate',String(job.fps),'-t',decimal(duration),'-i',clip.path);
+    if(clip.kind==='image') {
+      if(!cacheStill(clip))args.push('-loop','1','-t',decimal(duration));
+      args.push('-framerate',String(job.fps),'-i',clip.path);
+    }
     else args.push('-ss',decimal(clip.in),'-t',decimal(duration),'-i',clip.path);
   }
-  for(const text of job.texts)args.push('-loop','1','-framerate',String(job.fps),'-t',decimal(total),'-i',overlays.get(text.id).path);
+  for(const text of job.texts)args.push('-framerate',String(job.fps),'-i',overlays.get(text.id).path);
   const W=job.width,H=job.height;
   const filters=[`color=c=black:s=${W}x${H}:r=${job.fps}:d=${decimal(total)},setsar=1[base]`];
   let video='base';
@@ -37,7 +43,13 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
     const masks=[];
     if(enter.type==='wipeleft')masks.push(`lte(X/W,${p})`);if(enter.type==='wiperight')masks.push(`gte(X/W,1-${p})`);
     if(leave.type==='wipeleft')masks.push(`gte(X/W,${q})`);if(leave.type==='wiperight')masks.push(`lte(X/W,1-${q})`);
-    if(masks.length||clip.keyframes?.opacity?.length)effects.push(`geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(${clip.keyframes?.opacity?.length?opacityExpr:'1'})${masks.length?'*'+masks.join('*'):''}'`);
+    if(masks.length||clip.keyframes?.opacity?.length){
+      const windows=[];
+      if(enter.type.startsWith('wipe'))windows.push(`lt(t,${decimal(enter.duration)})`);
+      if(leave.type.startsWith('wipe'))windows.push(`gte(t,${decimal(duration-leave.duration)})`);
+      const enable=clip.keyframes?.opacity?.length?'':`:enable='${windows.join('+')}'`;
+      effects.push(`geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(${clip.keyframes?.opacity?.length?opacityExpr:'1'})${masks.length?'*'+masks.join('*'):''}'${enable}`);
+    }
     const progress=`clip((t-${decimal(clip.start)})/${decimal(enter.duration)},0,1)`,outProgress=`clip((t-${decimal(clip.start+duration-leave.duration)})/${decimal(leave.duration)},0,1)`;
     let move='';if(enter.type==='slideleft')move+=`+W*(1-${progress})`;if(enter.type==='slideright')move+=`-W*(1-${progress})`;
     if(leave.type==='slideleft')move+=`-W*${outProgress}`;if(leave.type==='slideright')move+=`+W*${outProgress}`;
@@ -59,7 +71,8 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
       }
     }
     if(!clip.keyframes?.opacity?.length&&opacity!==1)effects.unshift(`colorchannelmixer=aa=${decimal(opacity)}`);
-    filters.push(`[${prepared}]${effects.length?effects.join(',')+',':''}setpts=PTS+${decimal(clip.start)}/TB[layer${index}]`);
+    // Reuse the decoded, scaled still; fades and animated opacity remain downstream of the cache.
+    filters.push(`[${prepared}]${cacheStill(clip)?`loop=loop=-1:size=1:start=0,trim=duration=${decimal(duration)},`:''}${effects.length?effects.join(',')+',':''}setpts=PTS+${decimal(clip.start)}/TB[layer${index}]`);
     const next='composite'+index;
     filters.push(`[${video}][layer${index}]overlay=x='(W-w)/2+${x}${move}':y='(H-h)/2+${y}':`+
       `enable='gte(t,${decimal(clip.start)})*lt(t,${decimal(clip.start+duration)})':eof_action=pass:repeatlast=0[${next}]`);
@@ -67,7 +80,8 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
   }
   job.texts.forEach((text,index)=>{
     const next='text'+index;
-    filters.push(`[${video}][${job.clips.length+index}:v]overlay=0:0:`+
+    filters.push(`[${job.clips.length+index}:v]loop=loop=-1:size=1:start=0,trim=duration=${decimal(total)}[textStill${index}]`);
+    filters.push(`[${video}][textStill${index}]overlay=0:0:`+
       `enable='gte(t,${decimal(text.start)})*lt(t,${decimal(text.end)})':eof_action=pass[${next}]`);
     video=next;
   });
@@ -90,11 +104,13 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
     : '[silence]anull[aout]');
   const script=join(work,'timeline-filter.txt');
   await writeFile(script,filters.join(';\n'),'utf8');
-  args.push('-filter_complex_threads','1','-filter_complex_script',script,'-map','[vout]','-map','[aout]',
+  args.push('-filter_complex_threads',String(filterThreads),'-filter_complex_script',script,'-map','[vout]','-map','[aout]',
     '-t',decimal(total),'-c:v','libx264','-preset',job.preset,'-crf',String(job.crf),'-pix_fmt','yuv420p',
     '-c:a','aac','-b:a','192k','-ar','48000','-ac','2','-movflags','+faststart',job.outPath);
   await run(ffmpeg,args,{onStderr:chunk=>{
     const match=/time=(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/.exec(chunk);
     if(match)job.progress=Math.max(job.progress,Math.min(.99,(Number(match[1])*3600+Number(match[2])*60+Number(match[3]))/total));
+    const speed=Number(/speed=\s*([0-9.eE+-]+)x/.exec(chunk)?.[1]);
+    if(Number.isFinite(speed)&&speed>0)job.renderSpeed=speed;
   }});
 }

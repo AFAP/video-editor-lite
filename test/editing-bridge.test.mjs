@@ -38,5 +38,15 @@ test('real FFmpeg: bounded waveform envelopes preserve silence and animated expo
     assert.ok(vacated[0]<15,'the source moved away from its original position');
     const rms=time=>{const pcm=raw(['-ss',String(time),'-i',output,'-t','0.05','-vn','-ac','1','-ar','8000','-f','f32le','pipe:1']);let sum=0;for(let i=0;i+3<pcm.length;i+=4)sum+=pcm.readFloatLE(i)**2;return Math.sqrt(sum/(pcm.length/4));};
     assert.ok(rms(.1)>rms(.9)*3,'volume automation fades the actual exported samples');
+    const image=join(folder,'still.png');await run(ffmpeg,['-v','error','-y','-i',source,'-frames:v','1',image]);
+    for(const animateScale of [false,true]){
+      const imageOutput=join(folder,animateScale?'animated-still.mp4':'cached-still.mp4');
+      const imageKeyframes={...keyframes};delete imageKeyframes.volume;if(!animateScale)delete imageKeyframes.scale;
+      await renderTimeline({clips:[{kind:'image',path:image,in:0,out:1.25,start:0,layer:1,scale:.6,keyframes:imageKeyframes}],texts:[],width:160,height:90,fps:24,preset:'ultrafast',crf:16,outPath:imageOutput,duration:1.25,progress:0},{ffmpeg,run,overlays:new Map(),work:folder});
+      const sample=(time,x)=>raw(['-ss',String(time),'-i',imageOutput,'-frames:v','1','-vf',`crop=2:2:${x}:44,scale=1:1,format=rgb24`,'-f','rawvideo','pipe:1'])[0];
+      assert.ok(sample(.125,40)>15&&sample(.125,40)<100,'still image retains animated opacity before the transition');
+      assert.ok(sample(.875,120)>170,'still image retains animated movement and scale');
+      assert.ok(sample(.875,10)<15,'still image moves away instead of freezing its first frame');
+    }
   }finally{await rm(folder,{recursive:true,force:true});}
 });

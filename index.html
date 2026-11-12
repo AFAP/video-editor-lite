@@ -4109,6 +4109,7 @@ async function startBridgeExport() {
       if (!state.ok) throw new Error(state.error || '任务丢了');
       job = state.job;
       setProgress(Math.max(0.1, job.progress));
+      if(Number.isFinite(job.renderSpeed)&&job.renderSpeed>0)$('#runLabel').textContent='本机 FFmpeg · '+job.renderSpeed.toFixed(2)+'× 实时 · 已用 '+fmtZip(job.elapsedSeconds||0);
       guard += 1;
       if (guard > 3000) throw new Error('等太久了，看看命令行窗口有没有报错');
     }

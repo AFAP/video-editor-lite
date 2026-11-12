@@ -136,6 +136,8 @@ test('real FFmpeg: legacy concat, multitrack composition, audio-only and text-on
       job=standalone.job;
       for(let n=0;n<200&&!['done','error'].includes(job.status);n++){await delay(100);job=(await(await fetch(base+'/job/'+job.id)).json()).job;}
       assert.equal(job.status,'done',job.error||logs);assert.equal(job.duration,.5);
+      assert.ok(Number.isFinite(job.elapsedSeconds)&&job.elapsedSeconds>0,'bridge exposes measured export time');
+      assert.ok(Number.isFinite(job.renderSpeed)&&job.renderSpeed>0,'bridge exposes FFmpeg rendering speed');
       const standaloneFile=join(temp,only+'-only.mp4');
       await writeFile(standaloneFile,Buffer.from(await(await fetch(base+'/download/'+job.id)).arrayBuffer()));
       const info=JSON.parse(run(ffprobe,['-v','error','-show_streams','-of','json',standaloneFile]));

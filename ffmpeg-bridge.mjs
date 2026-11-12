@@ -175,6 +175,8 @@ function publicJob(job) {
     outName: job.outName,
     size: job.size,
     duration: job.duration,
+    renderSpeed: job.renderSpeed,
+    elapsedSeconds: job.startedAt?Math.max(0,((job.finishedAt||Date.now())-job.startedAt)/1000):0,
     error: job.error,
   };
 }
