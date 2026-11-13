@@ -28,6 +28,7 @@ import { extractWaveform } from './waveform.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = '127.0.0.1';
+const SESSION_ID = randomUUID();
 const WORK = join(tmpdir(), 'video-tool-bridge');
 const IN_DIR = join(WORK, 'in');
 const OUT_DIR = join(WORK, 'out');
@@ -97,7 +98,7 @@ function run(file, args, options = {}) {
       if (stderr.length > 262144) stderr = stderr.slice(-131072);
       options.onStderr?.(chunk);
     });
-    child.on('error', reject);
+    child.on('error', failure => { if(failure.name!=='AbortError')reject(failure); });
     child.on('close', (code) => {
       if (code === 0) resolve({ stdout, stderr });
       else {
@@ -187,6 +188,7 @@ async function pump() {
   try {
     while (queue.length) {
       const job = queue.shift();
+      if (job.status === 'cancelled') continue;
       await renderJob(job);
     }
   } finally {
@@ -195,14 +197,17 @@ async function pump() {
 }
 
 async function renderJob(job) {
+  job.controller = new AbortController();
+  const runJob = (file,args,options={}) => run(file,args,{...options,signal:job.controller.signal});
   job.status = 'running';
   job.startedAt = Date.now();
   const work = join(OUT_DIR, `work-${job.id}`);
   try {
     await mkdir(work, { recursive: true });
     if (job.timeline) {
-      await renderTimeline(job, { ffmpeg: BIN.ffmpeg, run, overlays, work });
+      await renderTimeline(job, { ffmpeg: BIN.ffmpeg, run:runJob, overlays, work });
       job.size = (await stat(job.outPath)).size;
+      job.controller.signal.throwIfAborted();
       job.progress = 1;
       job.status = 'done';
       log(`多轨合成完成 ${job.outName} (${clock(job.duration)})`);
@@ -268,7 +273,7 @@ async function renderJob(job) {
       args.push('-movflags', '+faststart', segment);
 
       const base = done;
-      await run(BIN.ffmpeg, args, {
+      await runJob(BIN.ffmpeg, args, {
         cwd: work,
         onStderr: (chunk) => {
           const seconds = parseTime(chunk);
@@ -283,7 +288,7 @@ async function renderJob(job) {
     }
 
     await writeFile(join(work, 'segments.txt'), `${list.join('\n')}\n`, 'utf8');
-    await run(BIN.ffmpeg, [
+    await runJob(BIN.ffmpeg, [
       '-hide_banner', '-loglevel', 'error', '-nostdin', '-y',
       '-f', 'concat', '-safe', '0', '-i', 'segments.txt',
       '-c', 'copy', '-movflags', '+faststart', join(work, 'joined.mp4'),
@@ -313,7 +318,7 @@ async function renderJob(job) {
       args.push('-map', '[vout]', '-map', '0:a?');
       args.push('-c:v', 'libx264', '-preset', job.preset, '-crf', String(job.crf), '-pix_fmt', 'yuv420p');
       args.push('-c:a', 'copy', '-movflags', '+faststart', job.outPath);
-      await run(BIN.ffmpeg, args, { cwd: work });
+      await runJob(BIN.ffmpeg, args, { cwd: work });
       await rm(join(work, 'joined.mp4'), { force: true }).catch(() => {});
     } else {
       await rename(join(work, 'joined.mp4'), job.outPath).catch(async () => {
@@ -322,16 +327,19 @@ async function renderJob(job) {
     }
 
     const info = await stat(job.outPath);
+    job.controller.signal.throwIfAborted();
     job.size = info.size;
     job.progress = 1;
     job.status = 'done';
     log(`完成 ${job.outName} (${(job.size / 1048576).toFixed(1)}MB, ${clock(total)})`);
   } catch (failure) {
-    job.status = 'error';
-    job.error = failure?.message || String(failure);
-    log('失败', job.error);
+    job.status = job.controller.signal.aborted ? 'cancelled' : 'error';
+    job.error = job.status === 'cancelled' ? '已取消导出' : failure?.message || String(failure);
+    log(job.status === 'cancelled' ? '已取消' : '失败', job.error);
   } finally {
     job.finishedAt = Date.now();
+    if(job.status==='done'&&!(job.renderSpeed>0))job.renderSpeed=job.duration/Math.max(.001,(job.finishedAt-job.startedAt)/1000);
+    if(job.status!=='done')await rm(job.outPath,{force:true}).catch(()=>{});
     rm(work, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -408,7 +416,7 @@ const server = createServer(async (req, res) => {
       } catch (failure) {
         return json(res, 200, { ok: false, error: failure.message, ffmpeg: BIN.ffmpeg || '' });
       }
-      return json(res, 200, { ok: true, port: PORT, ffmpeg: BIN.ffmpeg, ffprobe: BIN.ffprobe || '', version,capabilities:{colorKey:true} });
+      return json(res, 200, { ok: true, sessionId:SESSION_ID, port: PORT, ffmpeg: BIN.ffmpeg, ffprobe: BIN.ffprobe || '', version,capabilities:{colorKey:true,jobControl:true} });
     }
 
     if (url.pathname === '/upload' && req.method === 'POST') {
@@ -547,6 +555,16 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { ok: true, job: publicJob(job) });
     }
 
+    const cancelMatch = /^\/job\/([0-9a-f]+)\/cancel$/.exec(url.pathname);
+    if (cancelMatch && req.method === 'POST') {
+      const job = jobs.get(cancelMatch[1]);
+      if (!job) return json(res, 404, { ok:false,error:'没有这个任务' });
+      if (!['done','error','cancelled'].includes(job.status)) {
+        job.status='cancelled';job.error='已取消导出';job.finishedAt=Date.now();
+        job.controller?.abort();
+      }
+      return json(res,200,{ok:true,job:publicJob(job)});
+    }
     const jobMatch = /^\/job\/([0-9a-f]+)$/.exec(url.pathname);
     if (jobMatch) {
       const job = jobs.get(jobMatch[1]);

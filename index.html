@@ -2008,6 +2008,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
 #captionDialog{width:min(960px,94vw);max-height:85vh;padding:20px}.caption-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.caption-toolbar input{min-width:100px;flex:1}.caption-rows{overflow:auto;max-height:55vh}.caption-row{display:grid;grid-template-columns:112px minmax(0,1fr) 50px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}.caption-row textarea{width:100%;min-height:42px;resize:vertical}.caption-row small{color:var(--dim)}
 
 .project-media-info{min-width:0;flex:1;display:grid;gap:5px}.project-media-info small{white-space:normal;overflow-wrap:anywhere}.project-media-error{color:#f0a49c!important}.project-media-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.project-media-actions .btn{white-space:nowrap}#projectLinks{max-height:45vh}.project-body>.speech-row{margin-top:12px}@media(max-width:580px){.project-media-row{align-items:flex-start;flex-direction:column}.project-media-actions{justify-content:flex-start}}
+#imageDurationDialog{width:min(540px,94vw);max-height:90vh;overflow:auto}#imageDurationDialog .speech-row>label{width:100px;font-size:12px;color:var(--dim)}#imageDurationDialog input[type=number]{flex:1;min-width:100px;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:4px;padding:8px}#imageDurationDialog .project-body>.note{display:block;margin:14px 0;line-height:1.8}#imageDurationDialog .primary{width:100%;justify-content:center}
 </style></head>
 <body><div id="app">
 <header class="app-header">
@@ -2113,7 +2114,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
     <button class="tool-btn" id="btnAddText" title="添加文字 (T)" aria-label="添加文字 (T)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16M12 5v15M8 20h8"/></svg>文字<kbd>T</kbd></button>
     <button class="tool-btn" id="btnDuplicate" title="复制片段或文字 (Ctrl+D)" aria-label="复制片段或文字 (Ctrl+D)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M15 8V4H4v11h4"/></svg><span>复制</span></button>
     <button class="tool-btn" id="btnDel" title="删除所选 (Delete)" aria-label="删除所选 (Delete)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg><span>删除</span></button>
-    <button class="tool-btn" id="btnRippleDelete" title="Shift+Delete：删除所选时间区间，未锁定轨道同步收拢">波纹删除</button><button class="tool-btn" id="btnCloseGaps" title="清除所有轨道均无内容的空白区间；锁定轨道不移动">清除空隙</button><button class="tool-btn" id="btnCaptions" title="搜索、编辑字幕，点击时间定位画面">字幕</button><span class="sep"></span><label class="track-adder"><span>＋ 添加轨道 ▾</span><select id="trackAdder" aria-label="动态添加轨道" title="可继续添加画面、音频或文字轨道"><option value="">选择要添加的轨道</option><option value="visual">画面轨（视频 / 图片）</option><option value="audio">音频轨（配乐 / 旁白）</option><option value="text">文字轨</option></select></label><span class="grow"></span><span class="chip" id="chipInfo">0 段</span><span class="sep"></span>
+    <button class="tool-btn" id="btnRippleDelete" title="Shift+Delete：删除所选时间区间，未锁定轨道同步收拢">波纹删除</button><button class="tool-btn" id="btnCloseGaps" title="清除所有轨道均无内容的空白区间；锁定轨道不移动">清除空隙</button><button class="tool-btn" id="btnImageDurations" title="批量修改图片时长并顺延本轨后续片段">图片时长</button><button class="tool-btn" id="btnCaptions" title="搜索、编辑字幕，点击时间定位画面">字幕</button><span class="sep"></span><label class="track-adder"><span>＋ 添加轨道 ▾</span><select id="trackAdder" aria-label="动态添加轨道" title="可继续添加画面、音频或文字轨道"><option value="">选择要添加的轨道</option><option value="visual">画面轨（视频 / 图片）</option><option value="audio">音频轨（配乐 / 旁白）</option><option value="text">文字轨</option></select></label><span class="grow"></span><span class="chip" id="chipInfo">0 段</span><span class="sep"></span>
     <div class="zoom-group"><button class="icon-btn" id="btnZoomOut" title="缩小时间线" aria-label="缩小时间线"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><span id="zoomLabel">适应</span><button class="icon-btn" id="btnZoomIn" title="放大时间线" aria-label="放大时间线"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="btn ghost sm" id="btnFit" title="让所有片段适应窗口">适应</button></div>
   </div>
   <div class="tl-body"><div class="tl-head-viewport"><div class="tl-head" id="trackHeads"></div></div>
@@ -2148,7 +2149,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
         <div class="note" id="formatNote"></div>
         <div class="actions">
           <button class="btn primary" id="btnStart">导出视频</button>
-          <button class="btn sm" id="btnCancel" style="display:none">取消</button>
+          <button class="btn sm" id="btnResumeExport" hidden>恢复上次导出</button><button class="btn sm" id="btnCancel" style="display:none">取消</button>
         </div>
         <div class="sum" id="sumText" style="margin-top:8px"></div>
         <div class="running" id="running">
@@ -2192,7 +2193,19 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
 <input type="file" id="speechSrtInput" accept=".srt,text/plain,application/x-subrip" hidden>
 
 <dialog id="captionDialog" aria-labelledby="captionTitle"><div class="dialog-heading"><h2 id="captionTitle">字幕 / 文字编辑</h2><span class="grow"></span><small id="captionCount"></small><button class="icon-btn" id="btnCloseCaptions" aria-label="关闭字幕编辑">×</button></div><div class="caption-toolbar"><select id="captionTrack" aria-label="字幕所在轨道"></select><input id="captionSearch" type="search" placeholder="搜索字幕" aria-label="搜索字幕"><input id="captionReplace" placeholder="替换为" aria-label="替换文字"><button class="btn sm" id="btnCaptionReplace">替换匹配项</button></div><p class="note">点击时间返回预览画面；统一样式可在右侧文字属性中操作，不改动字幕内容和起止时间。</p><div class="caption-rows" id="captionRows"></div></dialog>
-<dialog id="projectDialog" aria-labelledby="projectTitle"><div class="dialog-heading"><div><h2 id="projectTitle">打开工程 / 恢复草稿</h2><p>自动尝试读取已授权的素材；找不到时可选择替代文件。</p></div><span class="grow"></span><button class="icon-btn" id="btnCloseProject" aria-label="关闭工程窗口">×</button></div><div class="project-body"><p id="projectLoadNote" class="note"></p><div id="projectLinks"></div><p class="speech-note">工程不打包原视频和音频。支持的浏览器会在本机记住文件授权；换浏览器、清理网站数据或移动文件后需重新选择。AI 配音请先下载 WAV 备份。</p><div class="speech-row"><button class="btn" id="btnProjectRelink">选择原始素材文件</button><button class="btn primary" id="btnApplyProject">载入工程</button></div></div></dialog><input type="file" id="projectFile" accept=".json,.lightcut" hidden><input type="file" id="projectMediaFiles" accept="video/*,image/*,audio/*,.mkv,.avi,.ts,.mts,.flv,.wmv,.flac,.m4a,.opus" multiple hidden>
+<dialog id="imageDurationDialog" aria-labelledby="imageDurationTitle">
+  <div class="dialog-heading"><div><h2 id="imageDurationTitle">批量修改图片时长</h2><p>保留转场，自动顺延本轨后续片段。</p></div><span class="grow"></span><button class="icon-btn" id="btnCloseImageDurations" aria-label="关闭图片时长">×</button></div>
+  <div class="project-body">
+    <div class="speech-row"><label for="imageDurationScope">范围</label><select id="imageDurationScope"><option value="track">当前轨道</option><option value="selected">所选图片</option><option value="all">全部图片轨道</option></select></div>
+    <div class="speech-row"><label for="imageDurationFrom">原时长（秒）</label><input id="imageDurationFrom" type="number" min="0.1" step="0.1" placeholder="留空表示任意时长"></div>
+    <div class="speech-row"><label for="imageDurationTo">改为（秒）</label><input id="imageDurationTo" type="number" min="0.1" max="86400" step="0.1" value="4"></div>
+    <label class="note"><input type="checkbox" id="imageDurationMusic" checked> 同步延长或缩短覆盖全片的配乐</label>
+    <p class="note">仅处理图片，不含贴纸。各轨独立顺延，其他轨道的字幕和片段保持原位。转场过长时会自动缩短；跨轨分组需先解除。</p>
+    <p id="imageDurationPreview" class="note" role="status" aria-live="polite"></p>
+    <button class="btn primary" id="btnApplyImageDurations">应用修改</button>
+  </div>
+</dialog>
+<dialog id="projectDialog" aria-labelledby="projectTitle"><div class="dialog-heading"><div><h2 id="projectTitle">打开工程 / 恢复草稿</h2><p>自动尝试读取已授权的素材；找不到时可选择替代文件。</p></div><span class="grow"></span><button class="icon-btn" id="btnCloseProject" aria-label="关闭工程窗口">×</button></div><div class="project-body"><p id="projectLoadNote" class="note"></p><label class="note"><input type="checkbox" id="projectSkipUnused" checked> 跳过未使用且未找到的素材</label><div id="projectLinks"></div><p class="speech-note">工程不打包原视频和音频。支持的浏览器会在本机记住文件授权；换浏览器、清理网站数据或移动文件后需重新选择。AI 配音请先下载 WAV 备份。</p><div class="speech-row"><button class="btn" id="btnProjectRelink">选择原始素材文件</button><button class="btn primary" id="btnApplyProject">载入工程</button></div></div></dialog><input type="file" id="projectFile" accept=".json,.lightcut" hidden><input type="file" id="projectMediaFiles" accept="video/*,image/*,audio/*,.mkv,.avi,.ts,.mts,.flv,.wmv,.flac,.m4a,.opus" multiple hidden>
 <input type="file" id="fileInput" accept="video/*,image/*,audio/*,.mkv,.avi,.ts,.mts,.flv,.wmv,.flac,.m4a,.opus" multiple hidden><div id="mediaSink" style="position:fixed;left:-10000px;top:0;width:2px;height:2px;overflow:hidden;opacity:.01;pointer-events:none"></div>
 <div class="drop-cover" id="dropCover" hidden><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></svg><span>松开鼠标，导入素材</span></div><div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -2287,6 +2300,8 @@ function saveSettings() {
 const CAN_USE_LOCAL_BRIDGE=location.protocol==='file:'||['','localhost','127.0.0.1','[::1]'].includes(location.hostname||'');
 const BRIDGE_PORTS = [...new Set([Number(location.port), 8787, 8788, 8789].filter(Boolean))];
 const bridge = { base: '', info: null };
+let activeBridgeJob=null;
+const EXPORT_JOB_KEY='lightcut.pending-export.v1';
 
 function renderBridgeBadge(state) {
   const el = $('#bridgeBadge');
@@ -2316,6 +2331,9 @@ async function detectBridge(quiet) {
       if (data && data.ok) {
         const changed = bridge.base !== 'http://127.0.0.1:' + port;
         bridge.base = 'http://127.0.0.1:' + port;
+        if(bridge.info?.sessionId&&data.sessionId!==bridge.info.sessionId){
+          for(const source of S.sources)source.bridgeId='';
+        }
         bridge.info = data;
         renderBridgeBadge();
         updateOutputNote();
@@ -2350,6 +2368,8 @@ function uploadToBridge(url, file, onProgress) {
       else reject(new Error((data && data.error) || '上传失败（' + xhr.status + '）'));
     };
     xhr.onerror = () => reject(new Error('连不上本机 ffmpeg 服务'));
+    xhr.timeout=120000;
+    xhr.ontimeout=()=>reject(new Error('素材同步超时，请检查桥接器后重试'));
     xhr.send(file);
   });
 }
@@ -2594,6 +2614,7 @@ async function fileReferenceRequest(mode,operation){
   });
 }
 async function rememberSourceFile(source,file){
+  if(source.bridgeId)source.bridgeSession=bridge.info?.sessionId;
   source.file=file;source.fileName=file.name;source.lastModified=Number(file.lastModified)||0;
   if(file.webkitRelativePath)source.relativePath=file.webkitRelativePath;
   const reference=pickedFileReferences.get(file);if(!reference)return;
@@ -2839,7 +2860,7 @@ function trackOptions(kind) {
 
 /* ------------------------------------------------------------------ 绘制 */
 function outputSize() {
-  const first = S.clips.find(clip => sourceOfId(clip.sourceId)?.kind !== 'audio');
+  const first = S.clips.find(clip => clipKind(clip) === 'visual');
   const source = first ? sourceOfId(first.sourceId) : null;
   let w = (source && source.width) || 1280;
   let h = (source && source.height) || 720;
@@ -2848,8 +2869,8 @@ function outputSize() {
   if (settings.size !== 'source') {
     const cap = Number(settings.size) || 1920;
     const k = Math.min(1, cap / Math.max(w, h));
-    w *= Math.round(k * 1000) / 1000;
-    h *= Math.round(k * 1000) / 1000;
+    w *= k;
+    h *= k;
   }
   return { w: even(w), h: even(h) };
 }
@@ -3903,7 +3924,7 @@ $('#cpReset').addEventListener('click', () => {
 /* 预览里拖动：选中文字就挪文字，选中片段就挪画面位置 */
 let dragText = null;
 stage.addEventListener('pointerdown', (event) => {
-  if (event.button !== 0 || S.rendering) return;
+  if (event.button !== 0 || S.rendering || S.busy || isLocked(selectedClip() || selectedText())) return;
   if (S.playing) stopPlayback();
   const rect = stage.getBoundingClientRect();
   const toNorm = (e) => ({
@@ -3920,7 +3941,7 @@ stage.addEventListener('pointerdown', (event) => {
     renderPosGrid(text);
     drawAt(S.time);
     const move = (e) => {
-      if (!dragText) return;
+      if (!dragText || S.rendering || S.busy || isLocked(dragText)) return;
       const p = toNorm(e);
       dragText.x = clamp(p.x, 0, 1);
       dragText.y = clamp(p.y, 0, 1);
@@ -3944,6 +3965,7 @@ stage.addEventListener('pointerdown', (event) => {
   const origin = {ox:animationValue(clip,'ox',clip.in+S.time-clip.start),oy:animationValue(clip,'oy',clip.in+S.time-clip.start)};
   stage.style.cursor = 'grabbing';
   const move = (e) => {
+    if (S.rendering || S.busy || isLocked(clip)) return;
     const p = toNorm(e);
     setAnimationValue(clip,'ox',clamp(origin.ox+(p.x-start.x),-.5,.5));
     setAnimationValue(clip,'oy',clamp(origin.oy+(p.y-start.y),-.5,.5));
@@ -3982,24 +4004,21 @@ function setProgress(ratio) {
 }
 function updateSummary() {
   const total = totalDuration();
-  const local = bridge.base && S.clips.every((c) => {
-    const src = sourceOfId(c.sourceId);
-    return src && src.bridgeId;
-  });
+  const local = Boolean(bridge.base);
   $('#sumText').innerHTML = S.clips.length
     ? '共 <b>' + S.clips.length + '</b> 段 · <b>' + S.texts.length + '</b> 条文字 · 总时长 <b>' + fmt(total) + '</b> · ' +
       (local ? '本机 ffmpeg 导出' : '导出约需 <b>' + fmtZip(total) + '</b>（实时录制）')
     : '';
   $('#btnStart').disabled = !totalDuration() || S.rendering;
-  $('#btnExport').disabled = !totalDuration() || S.rendering;
-  $('#btnCancel').style.display = S.rendering && exportEngine === 'recorder' ? '' : 'none';
+  $('#btnExport').disabled = (!totalDuration() && !savedExportJob()) || S.rendering;
+  $('#btnCancel').style.display = S.rendering ? '' : 'none';
   refreshEditorUi();
   updateOutputNote();
 }
 function updateOutputNote() {
-  const local = Boolean(bridge.base) && S.clips.every(c => sourceOfId(c.sourceId)?.bridgeId);
+  const local = Boolean(bridge.base);
   $('#outMode').textContent = local ? '本机 FFmpeg' : '浏览器实时录制';
-  $('#engineDescription').textContent = local ? '本机渲染 · MP4 / H.264 + AAC' : '画布录制 · 请在导出时保持页面前台';
+  $('#engineDescription').textContent = local ? '本机渲染 · MP4 / H.264 + AAC · 导出前自动同步素材' : '画布录制 · 请在导出时保持页面前台';
   $('#setFormat').disabled = local || S.rendering;
   for (const id of ['#setSize','#setFps','#setQuality','#setName','#setAspect']) $(id).disabled = S.rendering;
   $('#setFormat').value = local ? 'mp4' : settings.format;
@@ -4018,13 +4037,8 @@ async function startExport() {
   if (S.rendering) return;
   if (!totalDuration()) return toast('时间线是空的', true);
   if (S.busy) return toast('素材正在导入，请稍候');
-  if (S.clips.some(c => trackEnabled(c.trackId) && !sourceOfId(c.sourceId)?.el && sourceOfId(c.sourceId)?.kind !== 'image' && !(bridge.base && sourceOfId(c.sourceId)?.bridgeId))) return toast('有素材无法在浏览器解码，请重新连接本机 FFmpeg 后导出', true);
-  const allRemote = bridge.base && S.clips.every((c) => {
-    const src = sourceOfId(c.sourceId);
-    return src && src.bridgeId;
-  });
-  if(allRemote){
-    if(S.clips.some(c=>trackEnabled(c.trackId)&&!c.audioOnly&&c.colorKey)&&!bridge.info?.capabilities?.colorKey)return toast('请重启本机 FFmpeg 桥接器，再刷新页面以启用去背景导出',true);
+  if (!bridge.base && S.clips.some(c => trackEnabled(c.trackId) && !sourceOfId(c.sourceId)?.el && sourceOfId(c.sourceId)?.kind !== 'image' && !(bridge.base && sourceOfId(c.sourceId)?.bridgeId))) return toast('有素材无法在浏览器解码，请重新连接本机 FFmpeg 后导出', true);
+  if(bridge.base){
     return startBridgeExport();
   }
   return startRecorderExport();
@@ -4039,6 +4053,7 @@ async function startBridgeExport() {
   const total = totalDuration();
 
   S.rendering = true;
+  S.cancel=false;
   updateSummary();
   showRunning(true);
   $('#canvas').style.display = 'none';
@@ -4048,12 +4063,17 @@ async function startBridgeExport() {
   const started = performance.now();
 
   try {
+    if(!await detectBridge(true))throw Error('无法连接本机 FFmpeg，请启动桥接器后重试');
+    if(S.clips.some(c=>trackEnabled(c.trackId)&&!c.audioOnly&&c.colorKey)&&!bridge.info?.capabilities?.colorKey)throw Error('请重启本机 FFmpeg 桥接器，再刷新页面以启用去背景导出');
+    await syncBridgeSources();
+    if(S.cancel)throw Error('已取消导出');
     // 1. 文字先渲染成整帧透明 PNG 传过去
     const texts = [];
     const textOrder=S.tracks.filter(track=>track.kind==='text').map(track=>track.id);
     const orderedTexts=[...S.texts].sort((a,b)=>textOrder.indexOf(b.trackId||'t1')-textOrder.indexOf(a.trackId||'t1'));
     for (let i = 0; i < orderedTexts.length; i += 1) {
       if(!trackEnabled(orderedTexts[i].trackId||'t1'))continue;
+      if(S.cancel)throw Error('已取消导出');
       const text = orderedTexts[i];
       const start = clamp(text.start, 0, total);
       const end = clamp(text.end, 0, total);
@@ -4067,6 +4087,7 @@ async function startBridgeExport() {
       setProgress(0.02 + (0.08 * (i + 1)) / Math.max(1, S.texts.length));
     }
 
+    if(S.cancel)throw Error('已取消导出');
     // 2. 交给 ffmpeg
     const res = await fetch(bridge.base + '/render', {
       method: 'POST',
@@ -4100,39 +4121,108 @@ async function startBridgeExport() {
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '导出失败');
-    const jobId = data.job.id;
-    let job = data.job;
-    let guard = 0;
-    while (job.status !== 'done' && job.status !== 'error') {
-      await sleep(450);
-      const state = await (await fetch(bridge.base + '/job/' + jobId, { cache: 'no-store' })).json();
-      if (!state.ok) throw new Error(state.error || '任务丢了');
-      job = state.job;
-      setProgress(Math.max(0.1, job.progress));
-      if(Number.isFinite(job.renderSpeed)&&job.renderSpeed>0)$('#runLabel').textContent='本机 FFmpeg · '+job.renderSpeed.toFixed(2)+'× 实时 · 已用 '+fmtZip(job.elapsedSeconds||0);
-      guard += 1;
-      if (guard > 3000) throw new Error('等太久了，看看命令行窗口有没有报错');
-    }
-    if (job.status === 'error') throw new Error(job.error || '导出失败');
-
+    activeBridgeJob={id:data.job.id,base:bridge.base,sessionId:bridge.info?.sessionId};
+    saveExportJob(activeBridgeJob);
+    const job=await watchBridgeJob(activeBridgeJob,data.job);
+    const jobId=job.id;
     const link = $('#dlLink');
-    link.href = bridge.base + '/download/' + jobId;
+    link.href = activeBridgeJob.base + '/download/' + jobId;
     link.removeAttribute('download');
     link.textContent = '下载 ' + job.outName;
     $('#okLine').textContent = '导出完成：' + job.outName + ' · 本机 ffmpeg · ' + fmtBytes(job.size) +
       ' · 时长 ' + fmt(job.duration) + ' · ' + (texts.length ? texts.length + ' 条文字已烧录 · ' : '') +
       '用时 ' + fmtZip((performance.now() - started) / 1000);
     $('#result').classList.add('show');
+    saveExportJob(null);
     setTimeout(() => { try { link.click(); } catch { /* 被拦就手动点 */ } }, 120);
   } catch (failure) {
     toast('本机导出失败：' + failure.message, true);
   } finally {
+    activeBridgeJob=null;
     S.rendering = false;
     $('#canvas').style.display = '';
     showRunning(false);
     updateSummary();
   }
 }
+
+function participatingSources(){
+  return [...new Set(S.clips.filter(c=>trackEnabled(c.trackId)).map(c=>sourceOfId(c.sourceId)))].filter(Boolean);
+}
+async function syncBridgeSources(){
+  const sources=participatingSources();
+  for(let i=0;i<sources.length;i++){
+    if(S.cancel)throw Error('已取消导出');
+    const source=sources[i];
+    if(source.bridgeId&&(!bridge.info?.sessionId||source.bridgeSession===bridge.info.sessionId))continue;
+    $('#runLabel').textContent='正在同步素材 '+(i+1)+' / '+sources.length+' · '+source.name;
+    let data;
+    if(source.kind==='image'){
+      const c=document.createElement('canvas');c.width=source.width;c.height=source.height;
+      c.getContext('2d').drawImage(source.img,0,0);
+      const blob=await new Promise(resolve=>c.toBlob(resolve,'image/png'));
+      if(!blob)throw Error('无法读取图片：'+source.name);
+      data=await uploadToBridge(bridge.base+'/overlay',blob);
+    }else{
+      let file=source.file;
+      if(!file&&source.generatedSpeech&&source.url){
+        const response=await bridgeRequest(source.url);if(response.ok)file=await response.blob();
+      }
+      if(!file)throw Error('无法重新读取「'+source.name+'」，请重新关联原文件后导出');
+      data=await uploadToBridge(bridge.base+'/upload?name='+encodeURIComponent(source.fileName||source.name),file,ratio=>{
+        $('#runNote').textContent='同步 '+source.name+' · '+Math.round(ratio*100)+'%';
+      });
+    }
+    source.bridgeId=data.id;source.bridgeSession=bridge.info?.sessionId;
+  }
+  $('#runLabel').textContent='本机 FFmpeg 正在准备导出';$('#runNote').textContent='后台渲染，不用守着。';
+}
+async function bridgeRequest(url,options={}){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+  try{return await fetch(url,{...options,signal:controller.signal});}finally{clearTimeout(timer);}
+}
+function savedExportJob(){
+  try{const job=JSON.parse(localStorage.getItem(EXPORT_JOB_KEY)||'null');return CAN_USE_LOCAL_BRIDGE&&job&&/^[0-9a-f]+$/.test(job.id)&&/^http:\/\/127\.0\.0\.1:\d+$/.test(job.base)?job:null;}catch{return null;}
+}
+function saveExportJob(job){
+  try{localStorage.setItem(EXPORT_JOB_KEY,JSON.stringify(job));}catch{}
+  $('#btnResumeExport').hidden=!job;
+}
+async function cancelBridgeJob(reference){
+  const response=await bridgeRequest(reference.base+'/job/'+reference.id+'/cancel',{method:'POST'}),data=await response.json();
+  if(!data.ok)throw Error(data.error||'取消失败');
+  return data.job;
+}
+async function watchBridgeJob(reference,initial={status:'queued'}){
+  let job=initial,failures=0;
+  while(!['done','error','cancelled'].includes(job.status)){
+    if(S.cancel){job=await cancelBridgeJob(reference);continue;}
+    await sleep(450);
+    let data;
+    try{data=await(await bridgeRequest(reference.base+'/job/'+reference.id,{cache:'no-store'})).json();failures=0;}
+    catch(error){
+      $('#runNote').textContent='连接暂时中断，正在重连；服务端任务仍会继续。';
+      if(++failures>=5)throw Error('连接已中断，可点击「恢复上次导出」继续查看');
+      continue;
+    }
+    if(!data.ok){saveExportJob(null);throw Error(data.error||'任务已不存在，请重新导出');}
+    job=data.job;setProgress(Math.max(.1,job.progress||0));
+    $('#runNote').textContent=job.status==='queued'?'正在排队，可取消任务。':'后台渲染，可随时取消；刷新后可恢复任务。';
+    if(Number.isFinite(job.renderSpeed)&&job.renderSpeed>0)$('#runLabel').textContent='本机 FFmpeg · '+job.renderSpeed.toFixed(2)+'× 实时 · 已用 '+fmtZip(job.elapsedSeconds||0);
+  }
+  if(job.status!=='done'){saveExportJob(null);throw Error(job.error||'已取消导出');}
+  return job;
+}
+$('#btnResumeExport').hidden=!savedExportJob();
+$('#btnResumeExport').addEventListener('click',async()=>{
+  const reference=savedExportJob();if(!reference||S.rendering)return;
+  exportEngine='bridge';activeBridgeJob=reference;S.rendering=true;S.cancel=false;showRunning(true);updateSummary();
+  try{
+    const job=await watchBridgeJob(reference);const link=$('#dlLink');
+    link.href=reference.base+'/download/'+job.id;link.removeAttribute('download');link.textContent='下载 '+job.outName;
+    $('#okLine').textContent='导出完成：'+job.outName+' · '+fmtBytes(job.size);$('#result').classList.add('show');saveExportJob(null);
+  }catch(error){toast(error.message,true);}finally{activeBridgeJob=null;S.rendering=false;showRunning(false);updateSummary();}
+});
 
 function textToPng(text, w, h) {
   return new Promise((resolve) => {
@@ -4206,7 +4296,10 @@ $('#fileInput').addEventListener('change', async (event) => {
 });
 $('#btnExport').addEventListener('click', openExport);
 $('#btnStart').addEventListener('click', () => startExport());
-$('#btnCancel').addEventListener('click', () => { S.cancel = true; });
+$('#btnCancel').addEventListener('click', async () => {
+  S.cancel=true;
+  if(activeBridgeJob)try{await cancelBridgeJob(activeBridgeJob);}catch(error){toast(error.message+'，可稍后恢复任务并取消',true);}
+});
 $('#btnPlay').addEventListener('click', () => togglePlay());
 $('#btnSplit').addEventListener('click', splitAtPlayhead);
 $('#btnAddText').addEventListener('click', addText);
@@ -4398,7 +4491,7 @@ function fitStageCanvas() {
 function stepFrame(direction) { if (S.playing) stopPlayback(); seek(S.time + direction / (Number(settings.fps) || 30)); }
 function openExport() {
   if (S.busy) return toast('素材正在导入，请稍候');
-  if (!totalDuration()) return toast('点击左侧素材上的「＋」，先添加到轨道');
+  if (!totalDuration() && !savedExportJob()) return toast('点击左侧素材上的「＋」，先添加到轨道');
   stopPlayback(); commitHistory(); updateSummary();
   if (!$('#exportDialog').open) $('#exportDialog').showModal();
 }
@@ -4435,8 +4528,8 @@ $('#btnFullscreen').addEventListener('click', async () => { try { if (document.f
 $('#bridgeBadge').addEventListener('click', async () => { if (S.rendering) return; renderBridgeBadge('checking'); await detectBridge(false); });
 $('#btnHelp').addEventListener('click', () => $('#helpDialog').showModal());
 $('#btnCloseHelp').addEventListener('click', () => $('#helpDialog').close());
-$('#btnCloseExport').addEventListener('click', () => { if (S.rendering) return toast('正在导出，请等待完成，或取消浏览器录制'); $('#exportDialog').close(); });
-$('#exportDialog').addEventListener('cancel', event => { if (S.rendering) { event.preventDefault(); toast('正在导出，请等待完成，或取消浏览器录制'); } });
+$('#btnCloseExport').addEventListener('click', () => { if (S.rendering) return toast('正在导出，请等待完成或点击取消'); $('#exportDialog').close(); });
+$('#exportDialog').addEventListener('cancel', event => { if (S.rendering) { event.preventDefault(); toast('正在导出，请等待完成或点击取消'); } });
 for (const id of ['#exportDialog', '#helpDialog']) $(id).addEventListener('close', () => { if ($(id).contains($('#toast'))) document.body.appendChild($('#toast')); });
 $('#projectName').value = settings.name;
 $('#projectName').addEventListener('input', () => { settings.name = $('#projectName').value; $('#setName').value = settings.name; saveSettings(); });
@@ -4697,7 +4790,7 @@ async function addGeneratedSpeech(){
     if(S.rendering||S.busy)throw new Error('请等待导出或导入结束');
     const at=Number($('#ttsAt').value);if(!Number.isFinite(at)||at<0)throw new Error('配音开始时间无效');
     stopPlayback();commitHistory();const track=createSpeechTrack('audio','AI 配音');
-    const source={id:'s'+(++S.seq),kind:'audio',name:'AI 配音 · '+String(result.text).slice(0,20),fileName:'配音-'+result.audio.id+'.wav',generatedSpeech:true,duration:result.audio.duration,size:result.audio.size,width:0,height:0,url:bridge.base+result.audio.url,el:document.createElement('audio'),node:null,thumb:audioThumbnail(),bridgeId:result.audio.id};
+    const source={id:'s'+(++S.seq),kind:'audio',name:'AI 配音 · '+String(result.text).slice(0,20),fileName:'配音-'+result.audio.id+'.wav',generatedSpeech:true,bridgeSession:bridge.info?.sessionId,duration:result.audio.duration,size:result.audio.size,width:0,height:0,url:bridge.base+result.audio.url,el:document.createElement('audio'),node:null,thumb:audioThumbnail(),bridgeId:result.audio.id};
     source.el.crossOrigin='anonymous';source.el.src=source.url;source.el.preload='auto';$('#mediaSink').appendChild(source.el);source.el.load();S.sources.push(source);
     const clip=appendClip(source,0,source.duration,track.id);moveClipTo(clip,at,track.id);
     if(result.segments?.length&&$('#ttsSubtitles').checked){const captions=createSpeechTrack('text','配音字幕');S.texts.push(...result.segments.map(cue=>makeCaption({...cue,start:at+cue.start,end:at+cue.end},captions.id)));}
@@ -5084,7 +5177,7 @@ async function createSticker(id,{at=S.time,trackId}={}){
   try{
     let source=S.sources.find(item=>item.stickerId===id);
     if(!source){const image=await stickerImage(id);source={id:'s'+(++S.seq),stickerId:id,kind:'image',name:def.name+'贴纸',fileName:def.id+'.png',size:0,duration:86400,width:image.width,height:image.height,url:image.url,img:image.img,el:null,thumb:image.url,bridgeId:'',node:null};
-      if(bridge.base)try{const blob=await new Promise(resolve=>image.canvas.toBlob(resolve,'image/png'));source.bridgeId=(await uploadToBridge(bridge.base+'/overlay',blob)).id;}catch(error){toast('贴纸暂用浏览器导出：'+error.message,true);}
+      if(bridge.base)try{const blob=await new Promise(resolve=>image.canvas.toBlob(resolve,'image/png'));source.bridgeId=(await uploadToBridge(bridge.base+'/overlay',blob)).id;source.bridgeSession=bridge.info?.sessionId;}catch(error){toast('贴纸暂用浏览器导出：'+error.message,true);}
       S.sources.push(source);
     }
     const track=stickerTrack(trackId),clip=appendClip(source,0,4,track.id);clip.start=Math.max(0,Number(at)||0);clip.scale=.28;clip.ox=.29;clip.oy=-.18;
@@ -5245,13 +5338,18 @@ async function authorizeProjectSource(id){
   }catch(error){pending.handles.delete(id);pending.errors.set(id,'读取失败：'+error.message);}
   finally{projectState.relinking=false;S.busy=false;renderProjectLinks();refreshHistoryUi();}
 }
+function projectMissingSources(pending){
+  const used=new Set(pending.data.clips.map(clip=>clip.sourceId));
+  return pending.data.sources.filter(source=>!pending.loaded.has(source.id)&&($('#projectSkipUnused').checked===false||used.has(source.id)));
+}
 function renderProjectLinks(){
-  const pending=projectState.pending;if(!pending)return;const missing=pending.data.sources.filter(source=>!pending.loaded.has(source.id));
+  const pending=projectState.pending;if(!pending)return;const missing=projectMissingSources(pending),used=new Set(pending.data.clips.map(clip=>clip.sourceId));
+  const skipped=pending.data.sources.filter(source=>!pending.loaded.has(source.id)&&!used.has(source.id)).length;
   $('#projectLinks').innerHTML=pending.data.sources.map(source=>{
     const linked=pending.loaded.get(source.id),error=pending.errors.get(source.id),canAuthorize=pending.handles.has(source.id),disabled=projectState.relinking?' disabled':'';
-    return '<div class="project-media-row"><div class="project-media-info"><span>'+escapeHtml(source.relativePath||source.fileName||source.name)+'</span><small class="'+(error?'project-media-error':'')+'">'+escapeHtml(error?error+(linked?'；保留已关联文件':''):(linked?'已关联：'+(linked.fileName||linked.name):canAuthorize?'需要重新授权读取':'未找到原文件'))+'</small></div><div class="project-media-actions">'+(canAuthorize?'<button class="btn sm" data-project-authorize="'+escapeHtml(source.id)+'"'+disabled+'>授权读取</button>':'')+'<button class="btn sm" data-project-replace="'+escapeHtml(source.id)+'"'+disabled+'>'+(linked?'更换文件':'选择替代')+'</button></div></div>';
+    return '<div class="project-media-row"><div class="project-media-info"><span>'+escapeHtml(source.relativePath||source.fileName||source.name)+'</span><small class="'+(error?'project-media-error':'')+'">'+escapeHtml(error?error+(linked?'；保留已关联文件':''):(linked?'已关联：'+(linked.fileName||linked.name):canAuthorize?'需要重新授权读取':(!used.has(source.id)&&$('#projectSkipUnused').checked!==false?'未使用，将跳过':'未找到原文件')))+'</small></div><div class="project-media-actions">'+(canAuthorize?'<button class="btn sm" data-project-authorize="'+escapeHtml(source.id)+'"'+disabled+'>授权读取</button>':'')+'<button class="btn sm" data-project-replace="'+escapeHtml(source.id)+'"'+disabled+'>'+(linked?'更换文件':'选择替代')+'</button></div></div>';
   }).join('');
-  $('#projectLoadNote').textContent=projectState.relinking?'正在读取素材，请稍候…':(pending.notice?pending.notice+' ':'')+(missing.length?'还需关联 '+missing.length+' 个素材。可批量选择原文件，或逐项选择替代文件。':'素材已全部关联。载入后会替换当前时间线，可用撤销返回。');
+  $('#projectLoadNote').textContent=projectState.relinking?'正在读取素材，请稍候…':(pending.notice?pending.notice+' ':'')+(missing.length?'还需关联 '+missing.length+' 个素材。可批量选择原文件，或逐项选择替代文件。':(skipped?'时间线素材已关联，将跳过 '+skipped+' 个未使用素材。':'素材已全部关联。')+'载入后可用撤销返回原时间线。');
   $('#btnApplyProject').disabled=Boolean(missing.length)||projectState.relinking;
   $('#btnProjectRelink').disabled=projectState.relinking;
 }
@@ -5302,7 +5400,7 @@ async function pickProjectMedia(targetId=''){
 async function applyProject(){
   const pending=projectState.pending;if(!pending||projectState.relinking)return;
   try{
-    const data=pending.data;if(data.sources.some(source=>!pending.loaded.has(source.id)))throw new Error('请先关联全部素材');
+    const data=pending.data;if(projectMissingSources(pending).length)throw new Error('请先关联时间线使用的素材');
     const clips=data.clips.map(input=>{const source=pending.loaded.get(input.sourceId);if(input.out>source.duration+.15)throw new Error('素材时长与工程不符：'+source.name);
       const fields=Object.fromEntries(CLIP_KEYS.filter(key=>input[key]!==undefined).map(key=>[key,structuredClone(input[key])]));
       if(fields.colorKey)fields.colorKey=normalizeColorKey(fields.colorKey);
@@ -5310,7 +5408,7 @@ async function applyProject(){
     const clipIds=new Map(data.clips.map((clip,index)=>[clip.id,clips[index].id]));for(const clip of clips)if(clip.transitionIn?.fromId)clip.transitionIn.fromId=clipIds.get(clip.transitionIn.fromId);
     const texts=data.texts.map(input=>({...Object.fromEntries(TEXT_KEYS.filter(key=>input[key]!==undefined).map(key=>[key,structuredClone(input[key])])),id:'t'+(++S.seq),trackId:input.trackId}));
     // Restore image bridge handles when possible; browser-only rendering remains available.
-    for(const source of pending.loaded.values())if(source.kind==='image'&&!source.bridgeId&&bridge.base){try{const c=document.createElement('canvas');c.width=source.width;c.height=source.height;c.getContext('2d').drawImage(source.img,0,0);const blob=await new Promise(resolve=>c.toBlob(resolve,'image/png'));source.bridgeId=(await uploadToBridge(bridge.base+'/overlay',blob)).id;}catch{}}
+    for(const source of pending.loaded.values())if(source.kind==='image'&&!source.bridgeId&&bridge.base){try{const c=document.createElement('canvas');c.width=source.width;c.height=source.height;c.getContext('2d').drawImage(source.img,0,0);const blob=await new Promise(resolve=>c.toBlob(resolve,'image/png'));source.bridgeId=(await uploadToBridge(bridge.base+'/overlay',blob)).id;source.bridgeSession=bridge.info?.sessionId;}catch{}}
     stopPlayback();commitHistory();const restoredSources=[...new Set(pending.loaded.values())];for(const source of S.sources)if(!restoredSources.includes(source))retiredSources.add(source);for(const source of pending.owned)if(!restoredSources.includes(source))retiredSources.add(source);S.sources=restoredSources;S.clips=clips;S.texts=texts;S.tracks=data.tracks.map(track=>({id:track.id,kind:track.kind,name:String(track.name||track.id).slice(0,80),muted:Boolean(track.muted),hidden:Boolean(track.hidden),locked:Boolean(track.locked)}));
     normalizeTrackNames();S.activeTrack=S.tracks.find(track=>track.kind==='visual').id;S.selected=null;S.time=clamp(Number(data.time)||0,0,totalDuration());
     const config=data.settings||{};for(const key of ['format','size','fps','quality','aspect'])if(typeof config[key]==='string')settings[key]=config[key];settings.name=String(config.name||'').slice(0,80);
@@ -5328,6 +5426,7 @@ $('#projectFile').addEventListener('change',async event=>{try{const file=event.t
 $('#btnProjectRelink').addEventListener('click',()=>pickProjectMedia());
 $('#projectLinks').addEventListener('click',event=>{const authorize=event.target.closest('[data-project-authorize]'),replace=event.target.closest('[data-project-replace]');if(authorize)authorizeProjectSource(authorize.dataset.projectAuthorize);else if(replace)pickProjectMedia(replace.dataset.projectReplace);});
 $('#projectMediaFiles').addEventListener('change',async event=>{const files=Array.from(event.target.files||[]),targetId=projectState.pickerTarget;event.target.value='';projectState.pickerTarget='';if(files.length)await relinkProjectFiles(files,targetId);});
+$('#projectSkipUnused').addEventListener('change',renderProjectLinks);
 $('#btnApplyProject').addEventListener('click',applyProject);$('#btnCloseProject').addEventListener('click',()=>{if(closeProjectDialog())$('#projectDialog').close();});$('#projectDialog').addEventListener('cancel',event=>closeProjectDialog(event));$('#projectDialog').addEventListener('close',()=>closeProjectDialog());
 $('#btnRecoverProject').addEventListener('click',()=>{try{prepareProject(JSON.parse(localStorage.getItem(PROJECT_KEY)));}catch(error){toast('草稿恢复失败：'+error.message,true);}});
 $('#btnDismissRecovery').addEventListener('click',()=>{$('#projectRecovery').hidden=true;});
@@ -5389,6 +5488,77 @@ function groupSelection(ungroup=false){
   for(const e of entries){const item=entryItem(e);if(ungroup)delete item.groupId;else item.groupId=id;}
   finishEdit();toast(ungroup?'已取消分组':'已分组，点击组内任意片段可一起移动');
 }
+function planImageDurations({scope='track',from=null,to,extendMusic=false}={}){
+  to=Number(to);
+  if(!Number.isFinite(to)||to<MIN_CLIP||to>86400)throw Error('新时长需为 0.1～86400 秒');
+  if(from!==null&&(!Number.isFinite(Number(from))||Number(from)<MIN_CLIP))throw Error('原时长需为正数，或留空');
+  const selected=new Set(selectionEntries().filter(e=>e.type==='clip').map(e=>e.id));
+  const candidates=S.clips.filter(c=>sourceOfId(c.sourceId)?.kind==='image'&&!sourceOfId(c.sourceId)?.stickerId&&!c.audioOnly&&
+    (scope==='all'||scope==='selected'&&selected.has(c.id)||scope==='track'&&c.trackId===S.activeTrack)&&
+    (from===null||Math.abs(c.out-c.in-Number(from))<.015)&&Math.abs(c.out-c.in-to)>.000001);
+  if(!candidates.length)throw Error('范围内没有符合条件且需要修改的图片');
+  const ids=new Set(candidates.map(c=>c.id)),tracks=new Set(candidates.map(c=>c.trackId)),copies=new Map(S.clips.map(c=>[c.id,structuredClone(c)]));
+  const oldVisualEnd=Math.max(0,...S.clips.filter(c=>clipKind(c)==='visual').map(c=>c.start+c.out-c.in));
+  for(const track of tracks){
+    if(trackOf(track)?.locked)throw Error('请先解锁需要修改的轨道');
+    let shift=0;
+    for(const original of S.clips.filter(c=>c.trackId===track).sort((a,b)=>a.start-b.start)){
+      const clip=copies.get(original.id);clip.start=original.start+shift;
+      if(ids.has(clip.id)){
+        if(clip.in+to>sourceOfId(clip.sourceId).duration+.000001)throw Error('图片时长超过素材支持的范围');
+        clip.out=clip.in+to;
+      }
+      const fx=clip.transitionIn,fromClip=fx?.fromId&&copies.get(fx.fromId),oldFrom=fx?.fromId&&clipOfId(fx.fromId);
+      if(fromClip&&fromClip.trackId===track&&oldFrom.start<original.start){
+        const duration=Math.min(fx.duration,(fromClip.out-fromClip.in)/2,(clip.out-clip.in)/2);
+        const nextStart=fromClip.start+fromClip.out-fromClip.in-duration;
+        shift+=nextStart-clip.start;clip.start=nextStart;
+        fx.originalStart=(fx.originalStart??oldFrom.start+oldFrom.out-oldFrom.in)+(fromClip.start+fromClip.out-fromClip.in-oldFrom.start-oldFrom.out+oldFrom.in);
+        fx.duration=duration;clip.fadeIn=duration;fromClip.fadeOut=duration;
+      }else if(fx&&!fx.fromId)clip.transitionIn={...fx,...normalizedTransition(fx,clip.out-clip.in)};
+      if(clip.transitionOut)clip.transitionOut={...clip.transitionOut,...normalizedTransition(clip.transitionOut,clip.out-clip.in)};
+      shift+=clip.out-clip.in-(original.out-original.in);
+      if(clip.start<-.000001)throw Error('缩短后会出现负时间，请先整理重叠片段');
+    }
+  }
+  const newVisualEnd=Math.max(0,...S.clips.filter(c=>clipKind(c)==='visual').map(c=>{const n=copies.get(c.id);return n.start+n.out-n.in;}));
+  const delta=newVisualEnd-oldVisualEnd;let musicCount=0;
+  if(extendMusic&&Math.abs(delta)>.000001){
+    for(const original of S.clips.filter(c=>clipKind(c)==='audio'&&c.start<=.15&&Math.abs(c.start+c.out-c.in-oldVisualEnd)<=.25)){
+      if(isLocked(original))throw Error('覆盖全片的配乐已锁定，请解锁或取消同步配乐');
+      const clip=copies.get(original.id),out=clip.out+delta;
+      if(out>sourceOfId(clip.sourceId).duration+.001||out-clip.in<MIN_CLIP)throw Error('配乐原文件长度不足，请取消同步配乐或更换较长音频');
+      clip.out=out;musicCount++;
+    }
+  }
+  const changed=S.clips.filter(c=>JSON.stringify(copies.get(c.id))!==JSON.stringify(c)),changedIds=new Set(changed.map(c=>c.id));
+  for(const clip of changed)if(clip.groupId){
+    const group=[...S.clips,...S.texts].filter(c=>c.groupId===clip.groupId);
+    if(group.some(c=>c.trackId!==clip.trackId))throw Error('涉及跨轨分组，请先解除分组后再批量修改');
+  }
+  return {clips:S.clips.map(c=>changedIds.has(c.id)?copies.get(c.id):c),count:candidates.length,musicCount,oldVisualEnd,newVisualEnd,delta};
+}
+function imageDurationOptions(){return {scope:$('#imageDurationScope').value||'track',from:$('#imageDurationFrom').value===''?null:Number($('#imageDurationFrom').value),to:Number($('#imageDurationTo').value),extendMusic:$('#imageDurationMusic').checked!==false};}
+function previewImageDurations(){
+  try{const plan=planImageDurations(imageDurationOptions());$('#imageDurationPreview').textContent='修改 '+plan.count+' 张图片 · 画面时长 '+fmt(plan.oldVisualEnd)+' → '+fmt(plan.newVisualEnd)+(plan.musicCount?' · 同步 '+plan.musicCount+' 段配乐':'');$('#btnApplyImageDurations').disabled=S.rendering||S.busy;}
+  catch(error){$('#imageDurationPreview').textContent=error.message;$('#btnApplyImageDurations').disabled=true;}
+}
+function applyImageDurations(options=imageDurationOptions()){
+  if(S.rendering||S.busy)return;
+  const plan=planImageDurations(options);stopPlayback();commitHistory();S.clips=plan.clips;finishEdit();
+  $('#imageDurationDialog').close();toast('已修改 '+plan.count+' 张图片，后续片段已顺延');return plan;
+}
+let imageDurationOpened=false;
+$('#btnImageDurations').addEventListener('click',()=>{
+  if(S.rendering||S.busy)return;
+  if(!imageDurationOpened)$('#imageDurationScope').value=selectionEntries().some(e=>e.type==='clip'&&sourceOfId(clipOfId(e.id)?.sourceId)?.kind==='image')?'selected':'track';
+  imageDurationOpened=true;
+  previewImageDurations();$('#imageDurationDialog').showModal();
+});
+for(const id of ['#imageDurationScope','#imageDurationFrom','#imageDurationTo','#imageDurationMusic'])$(id).addEventListener('input',previewImageDurations);
+$('#btnCloseImageDurations').addEventListener('click',()=>$('#imageDurationDialog').close());
+$('#btnApplyImageDurations').addEventListener('click',()=>{try{applyImageDurations();}catch(error){toast(error.message,true);previewImageDurations();}});
+
 function mergeIntervals(intervals){
   const result=[];
   for(const [a,b]of intervals.filter(([a,b])=>b>a).sort((x,y)=>x[0]-y[0])){
@@ -5599,8 +5769,8 @@ $('#kfProperty').addEventListener('change',refreshKeyframeInspector);$('#kfValue
 $('#btnKfAdd').addEventListener('click',()=>editKeyframe('add'));$('#btnKfRemove').addEventListener('click',()=>editKeyframe('remove'));$('#btnKfClear').addEventListener('click',()=>editKeyframe('clear'));
 $('#kfPoints').addEventListener('click',event=>{const node=event.target.closest('[data-time]'),clip=selectedClip();if(node&&clip)seek(clip.start+Number(node.dataset.time)-clip.in);});
 $('#tlScroll').addEventListener('scroll',drawTimelineWaveforms);
-for(const id of ['#clipPanel','#textPanel'])for(const type of ['input','change','click','pointerdown'])$(id).addEventListener(type,event=>{const item=id==='#clipPanel'?selectedClip():selectedText();if(isLocked(item)){event.preventDefault();event.stopImmediatePropagation();}},true);
-stage.addEventListener('pointerdown',event=>{if(isLocked(selectedClip()||selectedText())){event.preventDefault();event.stopImmediatePropagation();}},true);
+for(const id of ['#clipPanel','#textPanel'])for(const type of ['input','change','click','pointerdown'])$(id).addEventListener(type,event=>{const item=id==='#clipPanel'?selectedClip():selectedText();if(S.rendering||S.busy||isLocked(item)){event.preventDefault();event.stopImmediatePropagation();}},true);
+stage.addEventListener('pointerdown',event=>{if(S.rendering||S.busy||isLocked(selectedClip()||selectedText())){event.preventDefault();event.stopImmediatePropagation();}},true);
 
 
 /* ------------------------------------------------------------------ 启动 */

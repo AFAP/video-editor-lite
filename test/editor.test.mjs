@@ -39,7 +39,7 @@ class Element {
   showModal() { this.open=true; } close() { this.open=false; }
 }
 
-function editor({storageBlocked = false, tracks = [], page = {}, browser = {}} = {}) {
+function editor({storageBlocked = false, tracks = [], page = {}, browser = {}, overrides = {}} = {}) {
   const frames = [];
   const clock = {time:0};
   const requests=[];
@@ -74,10 +74,11 @@ function editor({storageBlocked = false, tracks = [], page = {}, browser = {}} =
     Image:class {constructor(){this.naturalWidth=256;this.naturalHeight=256;this.complete=true;}async decode(){}},
     fetch:async url => {requests.push(url);return {ok:true,json:async () => ({ok:true,version:'test'})};},
     MediaRecorder:{isTypeSupported:() => true},
-    window:{addEventListener() {},removeEventListener() {},...browser},indexedDB:browser.indexedDB,
+    window:{addEventListener() {},removeEventListener() {},...browser},indexedDB:browser.indexedDB,...overrides,
   });
   let js = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   js = js.replace(/\}\)\(\);\s*$/, `globalThis.testApi = { S, settings, bridge, history,
+    planImageDurations,applyImageDurations,previewImageDurations,participatingSources,syncBridgeSources,watchBridgeJob,savedExportJob,saveExportJob,projectMissingSources,renderProjectLinks,
     appendClip, addSourceToTimeline, importPickedFiles, reorderTrack, normalizeTrackNames, setClipTransform, syncTransformInputs, refreshKeyframeInspector, copyTimelineSelection, pasteTimelineSelection, layout, outputSize, splitAtPlayhead, duplicateSelected,
     deleteSelected, commitHistory, undo, redo, readSettings, updateOutputNote, togglePlay,
     activeRows, visualRows, totalDuration, addTrack, moveClipTo, mediaForClip, preloadUpcomingMedia, snapStart, clipVolume, mediaKind,
@@ -328,13 +329,110 @@ test('output uses the first source aspect ratio with even dimensions', () => {
   assert.ok(Math.abs(w/h - 9/16) < .003); assert.ok(h<=1280);
 });
 
-test('bridge format is locked to MP4 only when all timeline media are uploaded', () => {
+test('connected bridge exports MP4 and syncs media even when imported before connection', () => {
   const {api,elements} = editor(); const {source} = seed(api);
   api.bridge.base='http://127.0.0.1:8787'; api.settings.format='webm';
-  api.updateOutputNote(); assert.equal(elements.get('setFormat').disabled,false);
+  api.updateOutputNote(); assert.equal(elements.get('setFormat').disabled,true);
   source.bridgeId='remote-id'; api.updateOutputNote();
   assert.equal(elements.get('setFormat').disabled,true); assert.equal(elements.get('setFormat').value,'mp4');
   assert.equal(api.settings.format,'webm');
+  api.bridge.base='';api.updateOutputNote();assert.equal(elements.get('setFormat').disabled,false);
+});
+
+test('source canvas ignores detached video audio and scales without ratio rounding',()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';clip.audioOnly=true;
+  const image={id:'large',kind:'image',duration:86400,width:4000,height:2000};api.S.sources.push(image);api.appendClip(image,0,3);
+  api.settings.size='source';assert.deepEqual({...api.outputSize()},{w:4000,h:2000});
+  image.width=3840;image.height=2160;api.settings.size='1280';assert.deepEqual({...api.outputSize()},{w:1280,h:720});
+});
+
+test('preview dragging respects locks on both media and text, including locks acquired during drag',()=>{
+  const moves=[];const {api,elements}=editor({browser:{addEventListener(type,fn){if(type==='pointermove')moves.push(fn);}}}),{clip}=seed(api);
+  const pointer=(x,y)=>({button:0,clientX:x,clientY:y,preventDefault(){}}),stage=elements.get('stage');
+  api.setSelection([{type:'clip',id:clip.id}]);api.S.tracks[0].locked=true;
+  stage.listeners.pointerdown[0](pointer(0,0));assert.equal(moves.length,0);assert.equal(clip.ox,0);
+  api.S.tracks[0].locked=false;stage.listeners.pointerdown[0](pointer(0,0));api.S.tracks[0].locked=true;
+  moves.at(-1)(pointer(90,44));assert.equal(clip.ox,0);assert.equal(clip.oy,0);
+  api.addTrack('text');const track=api.S.tracks.at(-1),text={id:'locked-text',trackId:track.id,x:.5,y:.5};api.S.texts.push(text);api.setSelection([{type:'text',id:text.id}]);track.locked=true;
+  stage.listeners.pointerdown[0](pointer(0,0));assert.equal(text.x,.5);assert.equal(text.y,.5);
+  track.locked=false;api.S.busy=true;const count=moves.length;stage.listeners.pointerdown[0](pointer(90,44));assert.equal(moves.length,count);
+});
+
+function imageSequence(api){
+  const image={id:'pictures',name:'pictures.png',size:4096,kind:'image',duration:86400,width:4000,height:2000};api.S.sources.push(image);
+  const clips=[];
+  for(const length of [3,5,6,3]){const clip=api.appendClip(image,0,length,'v1');if(clips.length)api.insertTransition('fade',clips.at(-1),clip,.5);clips.push(clip);}
+  return clips;
+}
+test('batch image durations filter old lengths, ripple successors, retain transitions and undo as one edit',()=>{
+  const {api}=editor(),clips=imageSequence(api),original=JSON.stringify(api.S.clips);api.commitHistory();
+  const plan=api.applyImageDurations({scope:'all',from:3,to:4});assert.equal(plan.count,2);assert.equal(plan.delta,2);
+  const [a,b,c,d]=api.S.clips;assert.equal(a.out,4);assert.equal(b.start,3.5);assert.equal(c.start,8);assert.equal(d.start,13.5);
+  assert.equal(d.transitionIn.fromId,c.id);assert.equal(d.transitionIn.duration,.5);
+  api.reconcileLinkedTransitions();assert.ok(api.S.clips.slice(1).every(c=>c.transitionIn));
+  api.undo();assert.equal(JSON.stringify(api.S.clips),original);api.redo();assert.equal(api.S.clips[0].out,4);
+  api.applyImageDurations({scope:'all',from:5,to:9});api.applyImageDurations({scope:'all',from:6,to:9});
+  assert.deepEqual(Array.from(api.S.clips,c=>c.out-c.in),[4,9,9,4]);assert.equal(api.S.clips.at(-1).start,20.5);
+  assert.equal(api.validateProject(api.buildProject()).clips.length,4);
+});
+test('batch shrinking clamps linked transitions and keeps their visual and audio edges joined',()=>{
+  const {api}=editor();imageSequence(api);
+  api.applyImageDurations({scope:'all',to:.4});api.reconcileLinkedTransitions();
+  for(let n=1;n<api.S.clips.length;n++){
+    const previous=api.S.clips[n-1],clip=api.S.clips[n];assert.ok(clip.transitionIn);assert.equal(clip.transitionIn.duration,.2);
+    assert.ok(Math.abs(previous.start+previous.out-previous.in-clip.start-.2)<1e-9);assert.equal(previous.fadeOut,.2);assert.equal(clip.fadeIn,.2);
+  }
+  assert.ok(Math.abs(api.S.clips.at(-1).start-.6)<1e-9);
+});
+test('batch selected images ripple only their own track and preserve intentional gaps and videos',()=>{
+  const {api}=editor(),clips=imageSequence(api);api.addTrack('visual');const upper=api.appendClip(api.S.sources[0],0,3,'v2');
+  const video={id:'v',kind:'video',duration:20};api.S.sources.push(video);const tail=api.appendClip(video,0,2,'v1');tail.start+=2;
+  api.setSelection([{type:'clip',id:clips[1].id}]);api.applyImageDurations({scope:'selected',to:9});
+  assert.equal(api.S.clips.find(c=>c.id===upper.id).out,3);assert.equal(api.S.clips.find(c=>c.id===tail.id).start,tail.start+4);
+  assert.equal(api.S.clips.find(c=>c.id===clips[0].id).out,3);assert.equal(api.S.clips.find(c=>c.id===clips[1].id).out,9);
+});
+test('batch music extension validates source length, locks and groups before any mutation',()=>{
+  const {api}=editor(),clips=imageSequence(api);api.addTrack('audio');const source={id:'bgm',kind:'audio',duration:100};api.S.sources.push(source);
+  const end=api.totalDuration(),music=api.appendClip(source,2,2+end,'a1');api.S.activeTrack='v1';
+  const before=JSON.stringify(api.S.clips);source.duration=music.out;
+  assert.throws(()=>api.applyImageDurations({scope:'all',from:3,to:4,extendMusic:true}),/长度不足/);assert.equal(JSON.stringify(api.S.clips),before);
+  source.duration=100;api.S.tracks.find(t=>t.id==='a1').locked=true;
+  assert.throws(()=>api.applyImageDurations({scope:'all',from:3,to:4,extendMusic:true}),/配乐已锁定/);assert.equal(JSON.stringify(api.S.clips),before);
+  api.S.tracks.find(t=>t.id==='a1').locked=false;const plan=api.applyImageDurations({scope:'all',from:3,to:4,extendMusic:true});assert.equal(plan.musicCount,1);assert.equal(api.S.clips.find(c=>c.id===music.id).out,music.out+2);
+  api.S.clips[0].groupId='cross';api.S.texts.push({id:'caption',trackId:'t1',start:0,end:3,groupId:'cross'});
+  const grouped=JSON.stringify(api.S.clips);assert.throws(()=>api.applyImageDurations({scope:'all',from:4,to:5}),/跨轨分组/);assert.equal(JSON.stringify(api.S.clips),grouped);
+  api.S.tracks[0].locked=true;assert.throws(()=>api.applyImageDurations({scope:'all',from:4,to:5}),/解锁/);
+});
+
+test('bridge source sync excludes disabled tracks and refreshes IDs after a process restart',async()=>{
+  const uploads=[];
+  class Upload {constructor(){this.upload={};}open(method,url){uploads.push(url);}send(){this.status=200;this.response={ok:true,id:'new-'+uploads.length};queueMicrotask(()=>this.onload());}}
+  const {api}=editor({overrides:{XMLHttpRequest:Upload}}),{source}=seed(api);source.file={name:'video.mp4'};
+  api.bridge.base='http://127.0.0.1:8787';api.bridge.info={sessionId:'one'};
+  api.addTrack('visual');const hidden={id:'hidden',kind:'video',duration:10};api.S.sources.push(hidden);api.appendClip(hidden,0,2,'v2');api.S.tracks.at(-1).hidden=true;
+  await api.syncBridgeSources();assert.equal(uploads.length,1);assert.equal(source.bridgeSession,'one');assert.equal(hidden.bridgeId,undefined);
+  await api.syncBridgeSources();assert.equal(uploads.length,1);
+  api.bridge.info={sessionId:'two'};await api.syncBridgeSources();assert.equal(uploads.length,2);assert.equal(source.bridgeId,'new-2');
+  source.file=null;api.bridge.info={sessionId:'three'};await assert.rejects(api.syncBridgeSources(),/重新关联原文件/);
+});
+
+test('healthy export jobs keep polling beyond 3000 responses and retry transient network failures',async()=>{
+  let calls=0;const storage=new Map();
+  const {api}=editor({overrides:{setTimeout(fn){queueMicrotask(fn);return 1;},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},fetch:async url=>{
+    if(!url.includes('/job/'))return {ok:true,json:async()=>({ok:true})};calls++;
+    if(calls===2)throw Error('transient');
+    return {json:async()=>({ok:true,job:{id:'abcd',status:calls>3002?'done':'running',progress:.5}})};
+  }}});
+  const reference={id:'abcd',base:'http://127.0.0.1:8787'};api.saveExportJob(reference);
+  const job=await api.watchBridgeJob(reference);assert.equal(job.status,'done');assert.equal(calls,3003);assert.equal(api.savedExportJob().id,'abcd');
+});
+test('export connection loss retains the task for recovery, while cancellation clears it',async()=>{
+  let cancel=false;const storage=new Map();const {api}=editor({overrides:{setTimeout(fn){queueMicrotask(fn);return 1;},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},fetch:async url=>{
+    if(!url.includes('/job/'))return {ok:true,json:async()=>({ok:true})};
+    if(!cancel)throw Error('offline');return {json:async()=>({ok:true,job:{id:'abcd',status:'cancelled',error:'已取消导出'}})};
+  }}}),reference={id:'abcd',base:'http://127.0.0.1:8787'};
+  api.saveExportJob(reference);await assert.rejects(api.watchBridgeJob(reference),/恢复上次导出/);assert.ok(api.savedExportJob());
+  cancel=true;api.S.cancel=true;await assert.rejects(api.watchBridgeJob(reference),/已取消/);assert.equal(api.savedExportJob(),null);
 });
 
 for (const nextIn of [90,10]) test(`play from the current cursor when adjacent clips share media (next in ${nextIn}s)`, async () => {
@@ -619,6 +717,16 @@ function savedFileProject(file=mediaFile()){
   api.S.sources.push(source);api.appendClip(source,2,8);
   return JSON.parse(JSON.stringify(api.buildProject()));
 }
+test('missing unused library media can be skipped, while required and hidden-track media still block recovery',async()=>{
+  const project=savedFileProject();project.sources.push({...project.sources[0],id:'unused',name:'unused.mp4',fileName:'unused.mp4'});
+  const {api,elements}=editor();const before=JSON.stringify(api.S.clips);await api.prepareProject(project);
+  assert.equal(elements.get('btnApplyProject').disabled,true);await api.relinkProjectFiles([mediaFile()],'saved');
+  assert.equal(elements.get('btnApplyProject').disabled,false);assert.match(elements.get('projectLinks').innerHTML,/未使用，将跳过/);
+  elements.get('projectSkipUnused').checked=false;api.renderProjectLinks();assert.equal(elements.get('btnApplyProject').disabled,true);
+  elements.get('projectSkipUnused').checked=true;await api.applyProject();assert.equal(api.S.clips.length,1);assert.equal(api.S.sources.length,1);api.undo();assert.equal(JSON.stringify(api.S.clips),before);
+  api.closeProjectDialog();project.clips.push({...project.clips[0],id:'required-hidden',sourceId:'unused'});project.tracks[0].hidden=true;
+  await api.prepareProject(project);await api.relinkProjectFiles([mediaFile()],'saved');assert.equal(elements.get('btnApplyProject').disabled,true);assert.equal(api.projectMissingSources(api.projectState.pending).length,1);
+});
 function referenceDatabase(records=[]){
   const saved=new Map(records.map(record=>[record.id,record]));
   return {saved,open(){

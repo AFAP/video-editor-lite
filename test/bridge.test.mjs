@@ -54,6 +54,16 @@ test('real FFmpeg: legacy concat, multitrack composition, audio-only and text-on
     assert.equal(invalidKey.status,400);assert.match((await invalidKey.json()).error,/去背景颜色/);
     const image = await post('/overlay',await readFile(join(temp,'background.png')),{'content-type':'image/png'});
     const overlay = await post('/overlay',await readFile(join(temp,'overlay.png')),{'content-type':'image/png'});
+    const ping=await(await fetch(base+'/ping')).json();assert.ok(ping.sessionId);assert.equal(ping.capabilities.jobControl,true);
+    assert.equal((await(await fetch(base+'/ping')).json()).sessionId,ping.sessionId);
+    const longBody=JSON.stringify({timeline:true,duration:600,width:320,height:180,fps:30,clips:[{id:image.id,kind:'image',in:0,out:600,start:0}]});
+    const running=await post('/render',longBody,{'content-type':'application/json'});
+    const queued=await post('/render',longBody,{'content-type':'application/json'});assert.equal(queued.job.status,'queued');
+    assert.equal((await post('/job/'+queued.job.id+'/cancel')).job.status,'cancelled');
+    assert.equal((await post('/job/'+running.job.id+'/cancel')).job.status,'cancelled');
+    await delay(200);assert.equal((await(await fetch(base+'/job/'+queued.job.id)).json()).job.status,'cancelled');
+    assert.equal((await(await fetch(base+'/job/'+running.job.id)).json()).job.status,'cancelled');
+    assert.equal((await fetch(base+'/download/'+running.job.id)).status,404);
     assert.ok(video.hasAudio); assert.equal(video.width,320);
     const render = await post('/render',JSON.stringify({
       clips:[
