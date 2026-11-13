@@ -29,12 +29,15 @@ Open [http://127.0.0.1:8787/](http://127.0.0.1:8787/) to export through the loca
 
 - **Multitrack editing:** Import video, images, and audio; start with one visual track and add tracks as needed.
 - **Everyday tools:** Multiselect, group, trim, split, ripple delete, undo, and redo.
+- **Batch image durations:** Filter by original length, change durations, retain transitions, ripple later clips, and optionally adjust background music.
 - **Audio tools:** Real waveforms, audio separation, volume, and fades.
 - **Background removal:** Key out green, black, or a custom color, adjust tolerance and edge softness, and overlay on an upper track in one click.
 - **Visuals and animation:** Canvas presets, keyframe animation, and timeline transitions with previews.
 - **Text and stickers:** 30 editable text styles and 112 built-in transparent stickers.
 - **Captions and speech:** SRT import/export, Bailian speech recognition, automatic captions, TTS, and text editing.
 - **Project saving:** Save projects, recover drafts, reconnect authorized media, and replace missing files individually.
+
+Native export syncs media automatically and supports cancellation and recovery after a disconnect or page refresh.
 
 AI features require the bridge and your own Bailian endpoints, models, and key, entered in the UI. They send the relevant audio or text to the provider and may incur usage charges.
 
