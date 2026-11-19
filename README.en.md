@@ -28,11 +28,13 @@ Open [http://127.0.0.1:8787/](http://127.0.0.1:8787/) to export through the loca
 ## 2. Features
 
 - **Multitrack editing:** Import video, images, and audio; start with one visual track and add tracks as needed.
-- **Everyday tools:** Multiselect, group, trim, split, ripple delete, undo, and redo.
+- **Everyday tools:** Multiselect, group, trim, split, ripple delete, selectively paste properties to multiple clips, replace media in place, undo, and redo.
 - **Batch image durations:** Filter by original length, change durations, retain transitions, ripple later clips, and optionally adjust background music.
-- **Audio tools:** Real waveforms, audio separation, volume, and fades.
+- **Audio tools:** Real waveforms, audio separation, volume, fades, and automatic music ducking that follows selected voice tracks and recovers during pauses.
+- **Media usage:** Filter used or unused assets, see reference counts, and jump to their timeline clips.
 - **Background removal:** Key out green, black, or a custom color, adjust tolerance and edge softness, and overlay on an upper track in one click.
-- **Visuals and animation:** Canvas presets, keyframe animation, and timeline transitions with previews.
+- **Visuals and animation:** Fit, fill and crop, rotate, flip, image zoom/pan presets, keyframes, and transitions with previews.
+- **Precise controls:** Visual, audio, text, and color-key sliders support numeric entry and individual resets.
 - **Text and stickers:** 30 editable text styles and 112 built-in transparent stickers.
 - **Captions and speech:** SRT import/export, Bailian speech recognition, automatic captions, TTS, and text editing.
 - **Project saving:** Save projects, recover drafts, reconnect authorized media, and replace missing files individually.
