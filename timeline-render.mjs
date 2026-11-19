@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import * as os from 'node:os';
 import { keyframeExpression } from './animation.mjs';
 import { colorKeyFilter } from './color-key.mjs';
+import { normalizeVisualTransform } from './visual-transform.mjs';
+import { duckingExpression } from './audio-ducking.mjs';
 
 const bounded = (value,min,max,fallback=0) => Number.isFinite(Number(value)) ? Math.min(max,Math.max(min,Number(value))) : fallback;
 const decimal = value => Number(value).toFixed(4);
@@ -30,8 +32,15 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
   let video='base';
   const visual=job.clips.map((clip,index)=>({clip,index})).filter(({clip})=>clip.kind!=='audio').sort((a,b)=>a.clip.layer-b.clip.layer||a.clip.start-b.clip.start);
   for(const {clip,index} of visual){
+    const transform=normalizeVisualTransform(clip),angle=transform.rotation*Math.PI/180;
+    const cosine=decimal(Math.abs(Math.cos(angle))),sine=decimal(Math.abs(Math.sin(angle)));
+    const fit=transform.fit==='cover'?`max((${W}*${cosine}+${H}*${sine})/iw,(${W}*${sine}+${H}*${cosine})/ih)`:`min(${W}/(iw*${cosine}+ih*${sine}),${H}/(iw*${sine}+ih*${cosine}))`;
+    const geometry=[transform.flipX?'hflip':'',transform.flipY?'vflip':'',transform.rotation?`rotate=${angle}:ow='ceil(rotw(${angle})/2)*2':oh='ceil(roth(${angle})/2)*2':c=none`:''].filter(Boolean);
+    const round=transform.fit==='cover'?'ceil':'trunc';
     const duration=clip.out-clip.in,scale=bounded(clip.scale,.1,3,1),opacity=bounded(clip.opacity,0,1,1);
     const scaleExpr=keyframeExpression(clip,'scale','t',scale);
+    const animateAfterRotation=Boolean(transform.rotation&&clip.keyframes?.scale?.length);
+    const initialScale=animateAfterRotation?'1':scaleExpr;
     const opacityExpr=keyframeExpression(clip,'opacity','T',opacity);
     const x=`${W}*(${keyframeExpression(clip,'ox',`t-${decimal(clip.start)}`,bounded(clip.ox,-.5,.5))})`;
     const y=`${H}*(${keyframeExpression(clip,'oy',`t-${decimal(clip.start)}`,bounded(clip.oy,-.5,.5))})`;
@@ -55,12 +64,13 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
     if(leave.type==='slideleft')move+=`-W*${outProgress}`;if(leave.type==='slideright')move+=`+W*${outProgress}`;
     // Fit and zoom in one resample instead of first enlarging every layer to output resolution.
     filters.push(`[${index}:v]trim=duration=${decimal(duration)},setpts=PTS-STARTPTS,`+
-      `scale=w='max(2,trunc(iw*min(${W}/iw,${H}/ih)*(${scaleExpr})/2)*2)':h='max(2,trunc(ih*min(${W}/iw,${H}/ih)*(${scaleExpr})/2)*2)':eval=${clip.keyframes?.scale?.length?'frame':'init'},`+
-      `setsar=1,fps=${job.fps},format=rgba[scaled${index}]`);
+      `scale=w='max(2,${round}(iw*(${fit})*(${initialScale})/2)*2)':h='max(2,${round}(ih*(${fit})*(${initialScale})/2)*2)':eval=${!animateAfterRotation&&clip.keyframes?.scale?.length?'frame':'init'},`+
+      `setsar=1,fps=${job.fps},format=rgba${geometry.length?','+geometry.join(','):''}`+
+      `${animateAfterRotation?`,scale=w='max(2,${round}(iw*(${scaleExpr})/2)*2)':h='max(2,${round}(ih*(${scaleExpr})/2)*2)':eval=frame`:''}[scaled${index}]`);
     let prepared=`scaled${index}`;
     if(keyFilter){
       prepared=`keyed${index}`;
-      if(clip.hasAlpha===false&&clip.kind!=='image')filters.push(`[scaled${index}]${keyFilter}[${prepared}]`);
+      if(clip.hasAlpha===false&&clip.kind!=='image'&&!transform.rotation)filters.push(`[scaled${index}]${keyFilter}[${prepared}]`);
       else{
         // Native colorkey overwrites alpha. Multiply its mask by source alpha before reattaching it.
         filters.push(`[scaled${index}]split=3[keyRgb${index}][keySource${index}][keyMask${index}]`,
@@ -93,7 +103,7 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
     if(!clip.hasAudio||clip.muted||!volume&&!clip.keyframes?.volume?.length)return;
     const duration=clip.out-clip.in,fi=bounded(clip.fadeIn,0,duration),fo=bounded(clip.fadeOut,0,duration);
     const parts=[`atrim=duration=${decimal(duration)}`,'asetpts=PTS-STARTPTS','aresample=48000',
-      'aformat=sample_fmts=fltp:channel_layouts=stereo',`volume='${keyframeExpression(clip,'volume','t',volume)}':eval=frame`];
+      'aformat=sample_fmts=fltp:channel_layouts=stereo',`volume='(${keyframeExpression(clip,'volume','t',volume)})*(${duckingExpression(clip.ducking,'t',clip.animationOffset??clip.in)})':eval=frame`];
     if(fi)parts.push(`afade=t=in:st=0:d=${decimal(fi)}`);
     if(fo)parts.push(`afade=t=out:st=${decimal(duration-fo)}:d=${decimal(fo)}`);
     parts.push(`adelay=${Math.round(clip.start*1000)}:all=1`);

@@ -25,6 +25,8 @@ import { createSpeechService } from './speech-service.mjs';
 import { normalizeKeyframes } from './animation.mjs';
 import { normalizeColorKey } from './color-key.mjs';
 import { extractWaveform } from './waveform.mjs';
+import { normalizeVisualTransform } from './visual-transform.mjs';
+import { normalizeDuckingPoints } from './audio-ducking.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = '127.0.0.1';
@@ -416,7 +418,7 @@ const server = createServer(async (req, res) => {
       } catch (failure) {
         return json(res, 200, { ok: false, error: failure.message, ffmpeg: BIN.ffmpeg || '' });
       }
-      return json(res, 200, { ok: true, sessionId:SESSION_ID, port: PORT, ffmpeg: BIN.ffmpeg, ffprobe: BIN.ffprobe || '', version,capabilities:{colorKey:true,jobControl:true} });
+      return json(res, 200, { ok: true, sessionId:SESSION_ID, port: PORT, ffmpeg: BIN.ffmpeg, ffprobe: BIN.ffprobe || '', version,capabilities:{colorKey:true,jobControl:true,visualTransform:true,audioDucking:true} });
     }
 
     if (url.pathname === '/upload' && req.method === 'POST') {
@@ -489,10 +491,12 @@ const server = createServer(async (req, res) => {
           ? Math.max(inPoint + 0.1, Number(clip.out) || inPoint + 5)
           : Math.min(Number(clip.out) || source.duration, source.duration || Number(clip.out) || 0);
         if (!(outPoint > inPoint)) return json(res, 400, { ok: false, error: '片段区间无效' });
-        let keyframes,colorKey;
-        try { keyframes = normalizeKeyframes(clip.keyframes);colorKey=normalizeColorKey(clip.colorKey); }
+        let keyframes,colorKey,visualTransform,ducking;
+        try { keyframes = normalizeKeyframes(clip.keyframes);colorKey=normalizeColorKey(clip.colorKey);visualTransform=normalizeVisualTransform(clip);ducking=normalizeDuckingPoints(clip.ducking); }
         catch (error) { return json(res,400,{ok:false,error:error.message}); }
         if(colorKey&&body.timeline!==true)return json(res,400,{ok:false,error:'去背景需要使用多轨时间线导出'});
+        if(ducking.length&&body.timeline!==true)return json(res,400,{ok:false,error:'人声避让需要使用多轨时间线导出'});
+        if(body.timeline!==true&&(visualTransform.fit==='cover'||visualTransform.rotation||visualTransform.flipX||visualTransform.flipY))return json(res,400,{ok:false,error:'画面适配与旋转需要使用多轨时间线导出'});
         prepared.push({
           kind: isImage ? 'image' : clip.kind === 'audio' ? 'audio' : 'video',
           start: Math.max(0, Number(clip.start) || 0),
@@ -501,6 +505,7 @@ const server = createServer(async (req, res) => {
           transitionIn: clip.transitionIn,
           transitionOut: clip.transitionOut,
           keyframes,colorKey:clip.kind==='audio'?undefined:colorKey,
+          ...visualTransform,ducking,
           animationOffset: inPoint,
           path: source.path,
           in: isImage ? 0 : inPoint,

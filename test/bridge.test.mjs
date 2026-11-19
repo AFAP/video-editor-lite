@@ -52,9 +52,12 @@ test('real FFmpeg: legacy concat, multitrack composition, audio-only and text-on
     assert.equal(invalidAnimation.status,400);assert.match((await invalidAnimation.json()).error,/关键帧/);
     const invalidKey=await fetch(base+'/render',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({timeline:true,clips:[{id:video.id,in:0,out:1,colorKey:{color:"#00ff00';movie=private"}}]})});
     assert.equal(invalidKey.status,400);assert.match((await invalidKey.json()).error,/去背景颜色/);
+    for(const transform of [{rotation:'90;movie=private'},{fit:'unknown'},{flipX:'yes'},{ducking:[{time:0,value:'eval(t)'}]},{ducking:[{time:1,value:.2},{time:0,value:1}]}]){
+      const invalid=await fetch(base+'/render',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({timeline:true,clips:[{id:video.id,in:0,out:1,...transform}]})});assert.equal(invalid.status,400);
+    }
     const image = await post('/overlay',await readFile(join(temp,'background.png')),{'content-type':'image/png'});
     const overlay = await post('/overlay',await readFile(join(temp,'overlay.png')),{'content-type':'image/png'});
-    const ping=await(await fetch(base+'/ping')).json();assert.ok(ping.sessionId);assert.equal(ping.capabilities.jobControl,true);
+    const ping=await(await fetch(base+'/ping')).json();assert.ok(ping.sessionId);assert.equal(ping.capabilities.jobControl,true);assert.equal(ping.capabilities.visualTransform,true);assert.equal(ping.capabilities.audioDucking,true);
     assert.equal((await(await fetch(base+'/ping')).json()).sessionId,ping.sessionId);
     const longBody=JSON.stringify({timeline:true,duration:600,width:320,height:180,fps:30,clips:[{id:image.id,kind:'image',in:0,out:600,start:0}]});
     const running=await post('/render',longBody,{'content-type':'application/json'});

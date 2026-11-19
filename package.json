@@ -13,6 +13,8 @@
     "test:speech": "node --test test/speech-bridge.test.mjs",
     "test:transitions": "node --test test/transitions.test.mjs",
     "test:editing": "node --test test/editing-bridge.test.mjs",
+    "test:visual": "node --test test/visual-tools.test.mjs",
+    "test:ducking": "node --test test/ducking.test.mjs",
     "test:color-key": "node --test test/color-key-bridge.test.mjs"
   }
 }

@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
 import { normalizeColorKey as nativeColorKey } from '../color-key.mjs';
+import {normalizeDuckingConfig as nativeDucking,buildDuckingEnvelope as nativeEnvelope} from '../audio-ducking.mjs';
 
 // Run the shipped inline script in an isolated lightweight DOM adapter.
 // These tests cover editing state; visual layout is verified separately.
@@ -78,6 +79,8 @@ function editor({storageBlocked = false, tracks = [], page = {}, browser = {}, o
   });
   let js = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   js = js.replace(/\}\)\(\);\s*$/, `globalThis.testApi = { S, settings, bridge, history,
+    normalizeDuckingConfig,normalizeDuckingPoints,duckingGain,buildDuckingEnvelope,clipDuckingEnvelope,duckingExpression,sourceUsageCounts,sourceReferences,openSourceUsage,locateSourceReference,voiceActivity,trackDuckingGain,exportDucking,planAudioDucking,applyAudioDucking,removeAudioDucking,invalidateDucking,pruneDuckingConfigs,clipBaseVolume,
+    normalizeVisualTransform,visualGeometry,NUMERIC_FIELDS,setNumericValue,resetNumericValue,syncAllNumericInputs,setStaticVisual,copyClipProperties,planPropertyPaste,pasteClipProperties,propertyOptions,openPropertyPaste,planClipReplacement,applyClipReplacement,openReplacement,loadReplacementFile,replacementState,closeReplacement,applyImageMotion,remappedAnimation,
     planImageDurations,applyImageDurations,previewImageDurations,participatingSources,syncBridgeSources,watchBridgeJob,savedExportJob,saveExportJob,projectMissingSources,renderProjectLinks,
     appendClip, addSourceToTimeline, importPickedFiles, reorderTrack, normalizeTrackNames, setClipTransform, syncTransformInputs, refreshKeyframeInspector, copyTimelineSelection, pasteTimelineSelection, layout, outputSize, splitAtPlayhead, duplicateSelected,
     deleteSelected, commitHistory, undo, redo, readSettings, updateOutputNote, togglePlay,
@@ -364,6 +367,117 @@ function imageSequence(api){
   for(const length of [3,5,6,3]){const clip=api.appendClip(image,0,length,'v1');if(clips.length)api.insertTransition('fade',clips.at(-1),clip,.5);clips.push(clip);}
   return clips;
 }
+
+function duckingProject(api){
+  const voice={id:'voice-source',kind:'audio',name:'voice.wav',size:100,duration:10,hasAudio:true,waveform:{duration:10,peaks:[0,0,1,1,0,0,0,1,1,0]}};
+  const music={id:'music-source',kind:'audio',name:'music.wav',size:200,duration:20,hasAudio:true};api.S.sources.push(voice,music);api.addTrack('audio');const speech=api.appendClip(voice,0,10,'a1');api.addTrack('audio');const bgm=api.appendClip(music,0,10,'a2');
+  return {voice,music,speech,bgm,options:{voiceTrackIds:['a1'],level:.2,attack:.1,release:.4,hold:.2,threshold:.02,useWaveform:true}};
+}
+test('browser and native ducking configuration and envelopes use the same rules',()=>{
+  const {api}=editor();
+  for(const value of [{voiceTrackIds:['v1']},{voiceTrackIds:['a1','a2'],level:0,hold:0,attack:3,release:5,useWaveform:false}]){
+    const config=api.normalizeDuckingConfig(value);assert.deepEqual(JSON.parse(JSON.stringify(config)),nativeDucking(value));const intervals=[[0,.2],[.5,1],[3,4],[3.5,4.5]];
+    assert.deepEqual(JSON.parse(JSON.stringify(api.buildDuckingEnvelope(intervals,config))),nativeEnvelope(intervals,nativeDucking(value)));
+  }
+});
+test('ducking follows real waveform pauses and composes with original gain, fades and automation',()=>{
+  const {api}=editor(),{bgm,options}=duckingProject(api);bgm.volume=.5;bgm.fadeIn=1;bgm.keyframes={volume:[{time:0,value:.5},{time:10,value:1}]};const original=JSON.stringify(bgm);
+  const plan=api.applyAudioDucking('a2',options);assert.equal(plan.intervals.length,2);assert.equal(api.trackDuckingGain('a2',1),1);assert.equal(api.trackDuckingGain('a2',3),.2);assert.equal(api.trackDuckingGain('a2',6),1);
+  assert.ok(Math.abs(api.clipVolume(bgm,3,10)-.65*.2)<1e-9);assert.equal(JSON.stringify(bgm),original);
+  assert.equal(api.clipVolume(bgm,.5,10),api.clipBaseVolume(bgm,.5,10));api.removeAudioDucking('a2');assert.equal(api.clipVolume(bgm,3,10),.65);
+});
+test('ducking updates after moving, trimming, muting, disabling and deleting voice tracks',()=>{
+  const {api}=editor(),{speech,options}=duckingProject(api);api.applyAudioDucking('a2',options);assert.equal(api.trackDuckingGain('a2',3),.2);
+  speech.start=10;api.commitHistory();assert.equal(api.trackDuckingGain('a2',3),1);assert.equal(api.trackDuckingGain('a2',13),.2);
+  speech.in=4;speech.out=10;api.invalidateDucking();assert.equal(api.trackDuckingGain('a2',10.5),1);assert.equal(api.trackDuckingGain('a2',13.5),.2);
+  for(const [object,key]of [[speech,'muted'],[api.S.tracks.find(t=>t.id==='a1'),'hidden'],[api.S.tracks.find(t=>t.id==='a1'),'muted']]){object[key]=true;api.invalidateDucking();assert.equal(api.trackDuckingGain('a2',13.5),1);object[key]=false;}
+  api.S.tracks=api.S.tracks.filter(t=>t.id!=='a1');api.S.clips=api.S.clips.filter(c=>c.trackId!=='a1');api.pruneDuckingConfigs();assert.equal(api.S.tracks.find(t=>t.id==='a2').ducking,undefined);
+});
+test('ducking fallback is explicit, threshold detects silence, and locked music cannot be changed',()=>{
+  const {api}=editor(),{voice,options}=duckingProject(api);voice.waveform.peaks.fill(0);assert.equal(api.planAudioDucking('a2',options).intervals.length,0);
+  delete voice.waveform;const plan=api.planAudioDucking('a2',options);assert.equal(plan.fallback,1);assert.equal(plan.intervals.length,1);
+  const track=api.S.tracks.find(t=>t.id==='a2');track.locked=true;assert.throws(()=>api.applyAudioDucking('a2',options),/解锁/);assert.equal(track.ducking,undefined);track.locked=false;
+  assert.throws(()=>api.applyAudioDucking('a2',{...options,voiceTrackIds:['a2']}),/不能与配乐轨道相同/);assert.throws(()=>api.normalizeDuckingConfig({...options,level:2}),/参数无效/);
+});
+test('ducking is undoable, round-trips through projects, and export envelopes retain source-relative trim offsets',async()=>{
+  const {api}=editor(),{bgm,options}=duckingProject(api);api.commitHistory();api.applyAudioDucking('a2',options);const saved=api.buildProject();assert.equal(saved.tracks.find(t=>t.id==='a2').ducking.level,.2);
+  api.undo();assert.equal(api.S.tracks.find(t=>t.id==='a2').ducking,undefined);api.redo();assert.equal(api.S.tracks.find(t=>t.id==='a2').ducking.level,.2);
+  const current=api.S.clips.find(c=>c.id===bgm.id);current.start=1;current.in=5;current.out=12;api.invalidateDucking();const points=api.exportDucking(current);assert.equal(points[0].time,5);assert.equal(points.at(-1).time,12);assert.equal(api.duckingGain(points,7),.2);
+  api.validateProject(saved);await api.prepareProject(saved);await api.applyProject();assert.equal(api.S.tracks.find(t=>t.id==='a2').ducking.voiceTrackIds[0],'a1');assert.equal(api.trackDuckingGain('a2',3),.2);
+  saved.tracks.find(t=>t.id==='a2').ducking.voiceTrackIds=['a99'];assert.throws(()=>api.validateProject(saved),/轨道引用无效/);
+});
+test('material counts include duplicates, hidden tracks and separated audio, and location is read-only',()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';const copy=api.appendClip(source,2,5);copy.start=20;api.addTrack('audio');const audio={...structuredClone(clip),id:'detached',trackId:'a1',audioOnly:true,start:10};api.S.clips.push(audio);api.S.tracks.find(t=>t.id==='a1').hidden=true;api.S.tracks.find(t=>t.id==='a1').locked=true;
+  const unused={id:'unused-count',name:'unused.png',kind:'image',size:10,duration:86400};api.S.sources.push(unused);
+  assert.equal(api.sourceUsageCounts().get(source.id),3);assert.equal(api.sourceUsageCounts().get(unused.id),undefined);assert.deepEqual(Array.from(api.sourceReferences(source.id),c=>c.start),[0,10,20]);
+  const before=JSON.stringify(api.S.clips);api.locateSourceReference(audio.id);assert.equal(api.S.activeTrack,'a1');assert.equal(api.S.selected.id,audio.id);assert.equal(api.S.time,10);assert.equal(api.S.tracks.find(t=>t.id==='a1').hidden,true);assert.equal(JSON.stringify(api.S.clips),before);
+  api.setSelection([{type:'clip',id:copy.id}]);api.commitHistory();api.deleteSelected();assert.equal(api.sourceUsageCounts().get(source.id),2);api.undo();assert.equal(api.sourceUsageCounts().get(source.id),3);
+});
+
+test('property snapshots paste selected groups to multiple compatible clips without sharing objects or timing',()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';Object.assign(clip,{scale:1.4,ox:.2,opacity:.6,fit:'cover',rotation:90,flipX:true,colorKey:{mode:'green',color:'#00ff00',similarity:.33,blend:.1}});
+  clip.keyframes={scale:[{time:1,value:1},{time:9,value:2}]};api.setSelection([{type:'clip',id:clip.id}]);api.copyClipProperties();clip.colorKey.similarity=.8;
+  const target=api.appendClip(source,3,7);target.keyframes={volume:[{time:3,value:.2},{time:7,value:1}]};
+  api.addTrack('audio');const audio={id:'audio',kind:'audio',duration:20};api.S.sources.push(audio);const sound=api.appendClip(audio,0,3,'a1');
+  api.addTrack('visual');const locked=api.appendClip(source,0,2,'v2');api.S.tracks.at(-1).locked=true;
+  api.setSelection([{type:'clip',id:target.id},{type:'clip',id:sound.id},{type:'clip',id:locked.id}]);api.commitHistory();const at=target.start;
+  const plan=api.pasteClipProperties({transform:true,opacity:true,colorkey:true,animation:true});assert.equal(plan.count,1);assert.equal(plan.skipped,2);
+  const changed=api.S.clips.find(c=>c.id===target.id);assert.equal(changed.start,at);assert.equal(changed.in,3);assert.equal(changed.out,7);assert.equal(changed.fit,'cover');assert.equal(changed.rotation,90);assert.equal(changed.flipX,true);assert.equal(changed.colorKey.similarity,.33);
+  assert.equal(api.animationValue(changed,'scale',3),1);assert.equal(api.animationValue(changed,'scale',7),1.5);assert.equal(changed.keyframes.volume[0].value,.2);assert.notEqual(changed.colorKey,clip.colorKey);
+  api.undo();assert.equal(api.S.clips.find(c=>c.id===target.id).rotation,undefined);api.redo();assert.equal(api.S.clips.find(c=>c.id===target.id).rotation,90);
+});
+test('static property paste clears only selected automation and retains linked transition timing',()=>{
+  const {api}=editor(),clips=imageSequence(api),original=JSON.stringify(clips[1].transitionIn);
+  clips[0].scale=1.7;clips[0].opacity=.3;api.setSelection([{type:'clip',id:clips[0].id}]);api.copyClipProperties();
+  clips[1].keyframes={scale:[{time:0,value:2}],opacity:[{time:0,value:.8}]};api.setSelection([{type:'clip',id:clips[1].id}]);
+  api.pasteClipProperties({transform:true,audio:true});const next=api.S.clips[1];assert.equal(next.scale,1.7);assert.equal(next.keyframes.scale,undefined);assert.ok(next.keyframes.opacity);assert.equal(JSON.stringify(next.transitionIn),original);assert.equal(next.start,2.5);
+});
+test('audio property paste clamps fades on short clips and skips locked targets',()=>{
+  const {api}=editor(),{source,clip}=seed(api);source.kind='video';Object.assign(clip,{volume:.42,muted:true,fadeIn:2,fadeOut:3});api.setSelection([{type:'clip',id:clip.id}]);api.copyClipProperties();
+  const next=api.appendClip(source,0,.5);api.setSelection([{type:'clip',id:next.id}]);api.pasteClipProperties({audio:true});const changed=api.S.clips.at(-1);
+  assert.equal(changed.volume,.42);assert.equal(changed.muted,true);assert.equal(changed.fadeIn,.5);assert.equal(changed.fadeOut,.5);
+  api.S.tracks[0].locked=true;assert.throws(()=>api.planPropertyPaste({audio:true}),/没有可粘贴/);
+});
+test('all inspector ranges have numeric fields and resets, preserve unfinished input and clamp edits',()=>{
+  const {api,elements}=editor(),{clip}=seed(api);api.setSelection([{type:'clip',id:clip.id}]);
+  for(const [id]of api.NUMERIC_FIELDS){assert.ok(ids.includes(id+'Number'),id);assert.ok(ids.includes(id+'Reset'),id);}
+  api.setNumericValue('cpVol',63.5);assert.equal(clip.volume,.635);assert.equal(elements.get('cpVolNumber').value,63.5);
+  api.setNumericValue('cpFadeIn',2.3);assert.equal(clip.fadeIn,2.3);assert.equal(api.setNumericValue('cpVol',''),false);assert.equal(clip.volume,.635);
+  api.setNumericValue('cpRotation',500);assert.equal(clip.rotation,180);
+  api.setClipColorKey('black');api.setNumericValue('cpKeySimilarity',33.3);assert.ok(Math.abs(clip.colorKey.similarity-.333)<1e-9);api.resetNumericValue('cpKeySimilarity');assert.equal(clip.colorKey.similarity,.1);
+  clip.keyframes={volume:[{time:1,value:.2},{time:9,value:.8}]};api.S.time=4;api.resetNumericValue('cpVol');assert.equal(clip.volume,1);assert.equal(clip.keyframes.volume,undefined);
+  api.S.tracks[0].locked=true;assert.equal(api.setNumericValue('cpRotation',0),false);assert.equal(clip.rotation,180);
+  api.addTrack('text');const text={id:'number-text',trackId:api.S.activeTrack,start:0,end:3,size:6,bg:false,bgAlpha:0,stroke:false,strokeWidth:0};api.S.texts.push(text);api.setSelection([{type:'text',id:text.id}]);
+  api.setNumericValue('txSize',9.5);api.setNumericValue('txSpacing',-1.5);api.setNumericValue('txStrokeWidth',4.5);api.setNumericValue('txBgAlpha',75);assert.equal(text.size,9.5);assert.equal(text.spacing,-1.5);assert.equal(text.stroke,true);assert.equal(text.bg,true);
+});
+test('in-place replacement preserves the clip identity, position, transforms and transitions as one undo step',()=>{
+  const {api}=editor(),clips=imageSequence(api),clip=clips[1];Object.assign(clip,{fit:'cover',rotation:90,flipY:true,scale:1.2});
+  const source={id:'replacement',kind:'image',name:'new.png',size:100,duration:86400,width:800,height:600};const before=JSON.stringify(api.S.clips);api.commitHistory();
+  const next=api.applyClipReplacement(clip.id,source);assert.equal(next.id,clip.id);assert.equal(next.start,clip.start);assert.equal(next.trackId,clip.trackId);assert.equal(next.out-next.in,5);assert.equal(next.rotation,90);assert.equal(next.scale,1.2);assert.equal(next.transitionIn.fromId,clip.transitionIn.fromId);assert.equal(api.S.sources.length,2);
+  api.undo();assert.equal(JSON.stringify(api.S.clips),before);assert.equal(api.S.sources.length,1);api.redo();assert.equal(api.S.clips[1].sourceId,source.id);
+});
+test('short replacement requires an explicit timing choice, remaps automation, and leaves successors in place',()=>{
+  const {api}=editor(),{clip,source}=seed(api);source.kind='video';clip.in=4;clip.out=9;clip.keyframes={scale:[{time:3,value:1},{time:5,value:2},{time:10,value:1}]};
+  const next=api.appendClip(source,0,1),replacement={id:'short',kind:'video',name:'short.mp4',duration:6,size:100,el:{pause(){}}};
+  assert.throws(()=>api.planClipReplacement(clip,replacement,'preserve'),/时长不足/);const original=JSON.stringify(api.S.clips);
+  assert.throws(()=>api.applyClipReplacement(clip.id,{...replacement,duration:2},'fromStart'),/时长不足/);assert.equal(JSON.stringify(api.S.clips),original);
+  const changed=api.applyClipReplacement(clip.id,replacement,'fromStart');assert.equal(changed.in,0);assert.equal(changed.out,5);assert.equal(api.animationValue(changed,'scale',0),1.5);assert.equal(api.animationValue(changed,'scale',1),2);
+  const shortened=api.applyClipReplacement(clip.id,{...replacement,id:'shortest',duration:2},'shorten');assert.equal(shortened.out,2);assert.equal(api.S.clips.at(-1).start,next.start);assert.equal(shortened.start,clip.start);
+  assert.throws(()=>api.planClipReplacement(shortened,{kind:'audio',duration:20}),/不兼容/);api.S.tracks[0].locked=true;assert.throws(()=>api.planClipReplacement(shortened,replacement),/解锁/);
+});
+test('loading or cancelling a replacement never changes the project or leaks an unused file',async()=>{
+  const {api,revoked}=editor(),{source,clip}=seed(api);source.kind='video';api.setSelection([{type:'clip',id:clip.id}]);api.openReplacement();const before=JSON.stringify(api.S.clips),count=api.S.sources.length;
+  await api.loadReplacementFile(mediaFile({name:'new.mp4'}));const replacement=api.replacementState.pending.source;assert.ok(replacement);assert.equal(JSON.stringify(api.S.clips),before);assert.equal(api.S.sources.length,count);
+  api.closeReplacement();assert.ok(revoked.includes(replacement.url));assert.equal(api.replacementState.pending,null);
+});
+test('image motion presets use local clip times, support multiselect, and preserve unrelated automation',async()=>{
+  const {api}=editor(),clips=imageSequence(api);clips[0].in=2;clips[0].out=5;clips[0].rotation=90;clips[0].keyframes={opacity:[{time:2,value:.5}]};
+  api.setSelection(clips.map(c=>({type:'clip',id:c.id})));api.commitHistory();api.applyImageMotion('zoomIn');assert.equal(clips[0].fit,'cover');assert.equal(clips[0].keyframes.scale[0].time,2);assert.equal(clips[0].keyframes.scale.at(-1).time,5);assert.equal(clips[0].rotation,90);assert.ok(clips[0].keyframes.opacity);
+  api.undo();assert.equal(api.S.clips[0].keyframes.scale,undefined);api.redo();api.applyImageMotion('panRight');assert.ok(api.S.clips.every(c=>c.keyframes.ox[0].value<0&&c.keyframes.ox.at(-1).value>0));
+  const project=api.buildProject();api.validateProject(project);await api.prepareProject(project);await api.applyProject();assert.equal(api.S.clips[0].rotation,90);assert.equal(api.S.clips[0].fit,'cover');assert.ok(api.S.clips[0].keyframes.ox);
+  api.setSelection([{type:'clip',id:api.S.clips[0].id}]);api.applyImageMotion('none');assert.equal(api.S.clips[0].keyframes.scale,undefined);assert.ok(api.S.clips[0].keyframes.opacity);
+  const bad=api.buildProject();bad.clips[0].rotation='90;movie=private';assert.throws(()=>api.validateProject(bad),/旋转/);
+});
 test('batch image durations filter old lengths, ripple successors, retain transitions and undo as one edit',()=>{
   const {api}=editor(),clips=imageSequence(api),original=JSON.stringify(api.S.clips);api.commitHistory();
   const plan=api.applyImageDurations({scope:'all',from:3,to:4});assert.equal(plan.count,2);assert.equal(plan.delta,2);
