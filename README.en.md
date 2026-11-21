@@ -23,7 +23,7 @@ Browser export records in real time and requires keeping the page in the foregro
 npm start
 ```
 
-Open [http://127.0.0.1:8787/](http://127.0.0.1:8787/) to export through the local FFmpeg bridge. No npm dependencies need to be installed. On Windows, you can also double-click `启动视频工具.bat`.
+Open [http://127.0.0.1:60001/](http://127.0.0.1:60001/) to export through the local FFmpeg bridge. No npm dependencies need to be installed. On Windows, you can also double-click `启动视频工具.bat`.
 
 ## 2. Features
 
@@ -36,8 +36,8 @@ Open [http://127.0.0.1:8787/](http://127.0.0.1:8787/) to export through the loca
 - **Visuals and animation:** Fit, fill and crop, rotate, flip, image zoom/pan presets, keyframes, and transitions with previews.
 - **Precise controls:** Visual, audio, text, and color-key sliders support numeric entry and individual resets.
 - **Text and stickers:** 30 editable text styles and 112 built-in transparent stickers.
-- **Captions and speech:** SRT import/export, Bailian speech recognition, automatic captions, TTS, and text editing.
-- **Project saving:** Save projects, recover drafts, reconnect authorized media, and replace missing files individually.
+- **Captions and speech:** Generate styled captions with Bailian, then adjust one cue to sync styling and position across the caption track. Supports SRT, TTS, and text editing; AI settings are saved in the current browser.
+- **Project saving:** Save projects, recover drafts, match media from a project folder, and replace missing files individually.
 
 Native export syncs media automatically and supports cancellation and recovery after a disconnect or page refresh.
 
