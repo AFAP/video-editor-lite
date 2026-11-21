@@ -2,6 +2,7 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 setlocal
+if not defined PORT set "PORT=60001"
 
 where node >nul 2>nul
 if errorlevel 1 (
@@ -15,11 +16,11 @@ if errorlevel 1 (
 
 echo.
 echo  Lite Video Editor · 本机 ffmpeg 服务
-echo  服务地址: http://127.0.0.1:8787/
+echo  服务地址: http://127.0.0.1:%PORT%/
 echo  关掉那个最小化的窗口就等于关掉服务。
 echo.
 
 start "视频工具 ffmpeg 服务" /min cmd /k node "%~dp0ffmpeg-bridge.mjs"
 timeout /t 2 /nobreak >nul
-start "" "http://127.0.0.1:8787/"
+start "" "http://127.0.0.1:%PORT%/"
 exit /b 0

@@ -28,7 +28,7 @@ import { extractWaveform } from './waveform.mjs';
 import { normalizeVisualTransform } from './visual-transform.mjs';
 import { normalizeDuckingPoints } from './audio-ducking.mjs';
 
-const PORT = Number(process.env.PORT || 8787);
+const PORT = Number(process.env.PORT || 60001);
 const HOST = '127.0.0.1';
 const SESSION_ID = randomUUID();
 const WORK = join(tmpdir(), 'video-tool-bridge');

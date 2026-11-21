@@ -65,6 +65,11 @@ test('ASR uses the selected trim range instead of uploading the entire source',a
   const {service,calls}=await fixture(t,async()=>asrResponse());const job=await waitJob(service,service.start({kind:'asr',sourceId:'source',in:21,out:26}).id);
   assert.equal(job.status,'done');assert.equal(calls[0][calls[0].indexOf('-ss')+1],'21');assert.equal(calls[0][calls[0].indexOf('-t')+1],'5');assert.equal(job.result.duration,5);
 });
+
+test('plain chat ASR responses cannot fabricate subtitle timestamps',async t=>{
+  const {service}=await fixture(t,async()=>new Response(JSON.stringify({output:{choices:[{message:{content:[{text:'只有文字，没有时间戳。'}]}}]}}),{headers:{'content-type':'application/json'}}));
+  const result=await waitJob(service,service.start({kind:'asr',sourceId:'source',in:0,out:3}).id);assert.equal(result.status,'error');assert.match(result.error,/时间戳/);
+});
 test('TTS uses the SpeechSynthesizer schema, downloads without forwarding the key and registers audio',async t=>{
   const requests=[];const {service,uploads}=await fixture(t,async(url,options={})=>{
     requests.push({url:String(url),options});

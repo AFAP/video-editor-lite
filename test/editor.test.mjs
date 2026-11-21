@@ -38,6 +38,7 @@ class Element {
   remove() { this.removed=true; } load() {} pause() {}
   removeEventListener(type,fn) { this.listeners[type]=(this.listeners[type]||[]).filter(item=>item!==fn); }
   showModal() { this.open=true; } close() { this.open=false; }
+  click() { this.clicks=(this.clicks||0)+1; }
 }
 
 function editor({storageBlocked = false, tracks = [], page = {}, browser = {}, overrides = {}} = {}) {
@@ -79,6 +80,7 @@ function editor({storageBlocked = false, tracks = [], page = {}, browser = {}, o
   });
   let js = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   js = js.replace(/\}\)\(\);\s*$/, `globalThis.testApi = { S, settings, bridge, history,
+    SPEECH_CONFIG_KEY,readLocalSpeechConfig,writeLocalSpeechConfig,saveSpeechConfig,clearLocalSpeechKey,syncLocalSpeechConfig,recognizeSpeech,fillSubtitleStyles,subtitleStyle,captionStyleOf,rememberCaptionSelection,syncCaptionStyles,setCaptionSync,centerSelectedText,
     normalizeDuckingConfig,normalizeDuckingPoints,duckingGain,buildDuckingEnvelope,clipDuckingEnvelope,duckingExpression,sourceUsageCounts,sourceReferences,openSourceUsage,locateSourceReference,voiceActivity,trackDuckingGain,exportDucking,planAudioDucking,applyAudioDucking,removeAudioDucking,invalidateDucking,pruneDuckingConfigs,clipBaseVolume,
     normalizeVisualTransform,visualGeometry,NUMERIC_FIELDS,setNumericValue,resetNumericValue,syncAllNumericInputs,setStaticVisual,copyClipProperties,planPropertyPaste,pasteClipProperties,propertyOptions,openPropertyPaste,planClipReplacement,applyClipReplacement,openReplacement,loadReplacementFile,replacementState,closeReplacement,applyImageMotion,remappedAnimation,
     planImageDurations,applyImageDurations,previewImageDurations,participatingSources,syncBridgeSources,watchBridgeJob,savedExportJob,saveExportJob,projectMissingSources,renderProjectLinks,
@@ -88,7 +90,7 @@ function editor({storageBlocked = false, tracks = [], page = {}, browser = {}, o
     normalizeColorKey,keyPixels,setClipColorKey,syncColorKeyInspector,overlayAtPlayhead,startExport,
     parseSrt,serializeSrt,setSpeechDraft,speechState,validateSpeechDraft,applySpeechCaptions,
     buildProject,validateProject,prepareProject,applyProject,projectState,connectPreviousClip,transitionState,
-    relinkProjectFiles,closeProjectDialog,matchProjectFiles,chooseMediaFiles,rememberSourceFile,loadSourceFile,authorizeProjectSource,
+    relinkProjectFiles,pickProjectMedia,closeProjectDialog,matchProjectFiles,chooseMediaFiles,rememberSourceFile,loadSourceFile,authorizeProjectSource,
     setSelection,selectionEntries,groupSelection,detachAudio,rippleDelete,closeTimelineGaps,isLocked,clipKind,
     animationValue,setAnimationValue,validateAnimation,applyCaptionStyle,openCaptionEditor,detectBridge,openSpeech,
     transitionCuts,transitionItems,insertTransition,removeTransition,selectedTransition,reconcileLinkedTransitions,paintTransitionDemo,
@@ -158,7 +160,7 @@ test('public browser edition never probes local services and still imports SRT c
 });
 
 test('local editor keeps bridge detection and AI speech available',async()=>{
-  const {api,elements,requests}=editor({page:{protocol:'http:',hostname:'127.0.0.1',port:'8787'}});
+  const {api,elements,requests}=editor({page:{protocol:'http:',hostname:'127.0.0.1',port:'60001'}});
   assert.equal(await api.detectBridge(false),true);assert.ok(requests.every(url=>url.startsWith('http://127.0.0.1:')));
   assert.ok(api.bridge.base);assert.notEqual(elements.get('btnSpeech').textContent,'导入字幕');
 });
@@ -334,7 +336,7 @@ test('output uses the first source aspect ratio with even dimensions', () => {
 
 test('connected bridge exports MP4 and syncs media even when imported before connection', () => {
   const {api,elements} = editor(); const {source} = seed(api);
-  api.bridge.base='http://127.0.0.1:8787'; api.settings.format='webm';
+  api.bridge.base='http://127.0.0.1:60001'; api.settings.format='webm';
   api.updateOutputNote(); assert.equal(elements.get('setFormat').disabled,true);
   source.bridgeId='remote-id'; api.updateOutputNote();
   assert.equal(elements.get('setFormat').disabled,true); assert.equal(elements.get('setFormat').value,'mp4');
@@ -522,7 +524,7 @@ test('bridge source sync excludes disabled tracks and refreshes IDs after a proc
   const uploads=[];
   class Upload {constructor(){this.upload={};}open(method,url){uploads.push(url);}send(){this.status=200;this.response={ok:true,id:'new-'+uploads.length};queueMicrotask(()=>this.onload());}}
   const {api}=editor({overrides:{XMLHttpRequest:Upload}}),{source}=seed(api);source.file={name:'video.mp4'};
-  api.bridge.base='http://127.0.0.1:8787';api.bridge.info={sessionId:'one'};
+  api.bridge.base='http://127.0.0.1:60001';api.bridge.info={sessionId:'one'};
   api.addTrack('visual');const hidden={id:'hidden',kind:'video',duration:10};api.S.sources.push(hidden);api.appendClip(hidden,0,2,'v2');api.S.tracks.at(-1).hidden=true;
   await api.syncBridgeSources();assert.equal(uploads.length,1);assert.equal(source.bridgeSession,'one');assert.equal(hidden.bridgeId,undefined);
   await api.syncBridgeSources();assert.equal(uploads.length,1);
@@ -537,14 +539,14 @@ test('healthy export jobs keep polling beyond 3000 responses and retry transient
     if(calls===2)throw Error('transient');
     return {json:async()=>({ok:true,job:{id:'abcd',status:calls>3002?'done':'running',progress:.5}})};
   }}});
-  const reference={id:'abcd',base:'http://127.0.0.1:8787'};api.saveExportJob(reference);
+  const reference={id:'abcd',base:'http://127.0.0.1:60001'};api.saveExportJob(reference);
   const job=await api.watchBridgeJob(reference);assert.equal(job.status,'done');assert.equal(calls,3003);assert.equal(api.savedExportJob().id,'abcd');
 });
 test('export connection loss retains the task for recovery, while cancellation clears it',async()=>{
   let cancel=false;const storage=new Map();const {api}=editor({overrides:{setTimeout(fn){queueMicrotask(fn);return 1;},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},fetch:async url=>{
     if(!url.includes('/job/'))return {ok:true,json:async()=>({ok:true})};
     if(!cancel)throw Error('offline');return {json:async()=>({ok:true,job:{id:'abcd',status:'cancelled',error:'已取消导出'}})};
-  }}}),reference={id:'abcd',base:'http://127.0.0.1:8787'};
+  }}}),reference={id:'abcd',base:'http://127.0.0.1:60001'};
   api.saveExportJob(reference);await assert.rejects(api.watchBridgeJob(reference),/恢复上次导出/);assert.ok(api.savedExportJob());
   cancel=true;api.S.cancel=true;await assert.rejects(api.watchBridgeJob(reference),/已取消/);assert.equal(api.savedExportJob(),null);
 });
@@ -669,6 +671,40 @@ test('ASR captions map to a moved clip while preserving the analyzed trim range'
   api.setSpeechDraft([{start:1,end:2,text:'片段内字幕'}],{offset:clip.start,context:{clipId:clip.id,sourceId:clip.sourceId,in:clip.in,out:clip.out,start:clip.start}});
   clip.start=12;assert.equal(api.validateSpeechDraft()[0].start,13);
   clip.in+=1;api.applySpeechCaptions();assert.equal(api.S.texts.length,0,'stale ASR trims must not create misaligned captions');
+});
+
+test('fancy ASR captions share style and position while each cue keeps its own text and timestamp',()=>{
+  const {api,elements}=editor();seed(api);elements.get('speechSubtitleStyle').value='neon-blue';api.setSpeechDraft([{start:0,end:1,text:'第一句话'},{start:1.5,end:2.5,text:'第二句话'}]);api.applySpeechCaptions();
+  const [first,second]=api.S.texts,track=api.S.tracks.find(t=>t.id===first.trackId);assert.equal(track.captionSync,true);assert.equal(first.presetId,'neon-blue');assert.equal(first.x,.5);assert.equal(first.size,4.3);
+  api.setSelection([{type:'text',id:first.id}]);api.rememberCaptionSelection();const texts=api.S.texts.map(t=>[t.content,t.start,t.end]);api.commitHistory();first.y=.7;first.size=5.5;first.color='#ff9900';api.syncCaptionStyles();api.commitHistory();
+  assert.equal(second.y,.7);assert.equal(second.size,5.5);assert.equal(second.color,'#ff9900');assert.deepEqual(api.S.texts.map(t=>[t.content,t.start,t.end]),texts);
+  api.undo();assert.equal(api.S.texts[1].y,.86);api.redo();assert.equal(api.S.texts[1].y,.7);
+  api.setSelection([{type:'text',id:api.S.texts[0].id}]);api.rememberCaptionSelection();api.setCaptionSync(false);api.S.texts[0].size=8;api.syncCaptionStyles();assert.equal(api.S.texts[1].size,5.5);api.setCaptionSync(true);assert.equal(api.S.texts[1].size,8);
+});
+test('caption centering preserves custom height, skips ordinary titles and survives save/load',async()=>{
+  const {api}=editor();seed(api);api.setSpeechDraft([{start:0,end:1,text:'一句'},{start:2,end:3,text:'另一句'}]);api.applySpeechCaptions();
+  const track=api.S.texts[0].trackId;api.S.texts.push({id:'manual-title',trackId:track,content:'标题',start:0,end:3,x:.2,y:.3,size:10});api.setSelection([{type:'text',id:api.S.texts[0].id}]);api.rememberCaptionSelection();api.S.texts[0].x=.2;api.S.texts[0].y=.64;api.centerSelectedText();assert.equal(api.S.texts[1].x,.5);assert.equal(api.S.texts[1].y,.64);assert.equal(api.S.texts[2].x,.2);
+  const project=api.buildProject();await api.prepareProject(project);await api.applyProject();assert.equal(api.S.tracks.find(t=>t.id===track).captionSync,true);assert.equal(api.S.texts[1].y,.64);
+  api.setSelection([{type:'text',id:api.S.texts[0].id}]);api.rememberCaptionSelection();api.S.tracks.find(t=>t.id===track).locked=true;api.S.texts[0].color='#000000';api.syncCaptionStyles();assert.notEqual(api.S.texts[1].color,'#000000');
+});
+test('AI settings including the key persist only in browser storage and restore into a fresh bridge',async()=>{
+  const storage=new Map(),calls=[];let remote={hasKey:false};
+  const override={localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},fetch:async(url,options)=>{
+    if(!String(url).includes('/speech/'))return {ok:true,json:async()=>({ok:true})};
+    if(options?.body){const body=JSON.parse(options.body);calls.push(body);remote={...remote,...body,hasKey:body.clearKey?false:Boolean(body.apiKey||remote.hasKey)};delete remote.apiKey;}
+    return {ok:true,json:async()=>({ok:true,config:remote})};
+  }};
+  const {api,elements}=editor({overrides:override});api.bridge.base='http://127.0.0.1:60001';
+  for(const field of ['ttsUrl','asrUrl','chatUrl'])elements.get('speech-'+field).value='https://speech.example/'+field;
+  for(const field of ['ttsModel','asrModel','chatModel'])elements.get('speech-'+field).value='example-'+field;
+  elements.get('speechApiKey').value='browser-fixture-key';await api.saveSpeechConfig();assert.equal(api.readLocalSpeechConfig().apiKey,'browser-fixture-key');assert.equal(elements.get('speechApiKey').value,'');
+  assert.ok(!JSON.stringify(api.buildProject()).includes('browser-fixture-key'));remote={hasKey:false};const fresh=editor({overrides:override});fresh.api.bridge.base=api.bridge.base;await fresh.api.openSpeech();assert.equal(remote.hasKey,true);assert.equal(calls.at(-1).apiKey,'browser-fixture-key');
+  await fresh.api.clearLocalSpeechKey();assert.equal(fresh.api.readLocalSpeechConfig().apiKey,'');assert.equal(remote.hasKey,false);assert.equal(fresh.api.readLocalSpeechConfig().asrModel,'example-asrModel');
+});
+test('browser AI storage failure leaves a usable page-scoped configuration',async()=>{
+  let requests=0;const {api,elements}=editor({overrides:{localStorage:{getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}},fetch:async(url,options)=>{
+    if(!String(url).includes('/speech/'))return {ok:true,json:async()=>({ok:true})};requests++;const body=JSON.parse(options.body);return {ok:true,json:async()=>({ok:true,config:{...body,hasKey:true,apiKey:undefined}})};
+  }}});api.bridge.base='http://127.0.0.1:60001';for(const field of ['ttsUrl','asrUrl','chatUrl'])elements.get('speech-'+field).value='https://speech.example/'+field;for(const field of ['ttsModel','asrModel','chatModel'])elements.get('speech-'+field).value='model';elements.get('speechApiKey').value='temporary-fixture-key';await api.saveSpeechConfig();assert.equal(api.speechState.localConfig.apiKey,'temporary-fixture-key');assert.match(elements.get('speechFeedback').textContent,/存储不可用/);await api.syncLocalSpeechConfig();assert.equal(requests,2);
 });
 
 test('cross-clip transitions overlap only the selected clip and preserve other track timing',()=>{
@@ -821,7 +857,7 @@ test('overlay at playhead creates an upper visual track and moves grouped audio 
 });
 
 test('old bridges cannot silently export a keyed clip without its background removal',async()=>{
-  const {api,elements}=editor(),{source,clip}=seed(api);source.kind='video';source.bridgeId='uploaded';api.bridge.base='http://127.0.0.1:8787';api.bridge.info={};
+  const {api,elements}=editor(),{source,clip}=seed(api);source.kind='video';source.bridgeId='uploaded';api.bridge.base='http://127.0.0.1:60001';api.bridge.info={};
   clip.colorKey=api.normalizeColorKey({mode:'green'});await api.startExport();
   assert.match(elements.get('toast').textContent,/重启.*去背景/);assert.equal(api.S.rendering,false);
 });
@@ -875,6 +911,75 @@ test('file matching accepts Unicode-normalized names and unique renamed or resiz
   const other={id:'two',name:'different.mp4',kind:'video',size:6};
   assert.equal(api.matchProjectFiles([...descriptors,other],[renamed,mediaFile({name:'other.mp4'})]).size,0);
   assert.equal(api.matchProjectFiles([...descriptors,{...descriptors[0],id:'two',size:6}],[resized]).size,0);
+});
+
+test('project matching accepts legacy filename aliases without guessing between ambiguous references',()=>{
+  const {api}=editor(),files=[mediaFile({name:'雪景.mp4'}),mediaFile({name:'绿幕.mp4'})];
+  const descriptors=[{id:'snow',name:'雪景.mp4',fileName:'old-snow.mp4',kind:'video',size:8},{id:'green',name:'old-green.mp4',relativePath:'素材/绿幕.mp4',kind:'video',size:9}];
+  assert.equal(api.matchProjectFiles(descriptors,files).get('snow'),files[0]);
+  assert.equal(api.matchProjectFiles(descriptors,files).get('green'),files[1]);
+  assert.equal(api.matchProjectFiles([...descriptors,{...descriptors[0],id:'other'}],files).has('snow'),false);
+});
+
+test('the unified project picker selects files without handle permissions and resets the input for repeated choices',async()=>{
+  let pickerCalls=0;const {api,elements}=editor({browser:{showOpenFilePicker:async()=>{pickerCalls++;throw Error('unavailable');}}});
+  await api.prepareProject(savedFileProject());const input=elements.get('projectMediaFiles');input.value='previous';
+  elements.get('btnProjectRelink').listeners.click[0]();assert.equal(elements.get('projectMediaMenu').hidden,false);assert.equal(input.clicks,undefined);
+  elements.get('btnProjectFiles').listeners.click[0]();assert.equal(input.clicks,1);assert.equal(input.multiple,true);assert.equal(input.value,'');assert.equal(pickerCalls,0);assert.equal(elements.get('projectMediaMenu').hidden,true);
+  input.files=[mediaFile()];await input.listeners.change[0]({target:input});assert.equal(elements.get('btnApplyProject').disabled,false);
+  await api.applyProject();assert.equal(api.S.clips.length,1);
+});
+
+test('per-row project replacements use ordinary selection and preserve their target through a cancelled or repeated choice',async()=>{
+  let pickerCalls=0;const {api,elements}=editor({browser:{showOpenFilePicker:async()=>{pickerCalls++;throw Error('unavailable');}}});
+  await api.prepareProject(savedFileProject());const input=elements.get('projectMediaFiles');api.pickProjectMedia('saved');
+  assert.equal(input.multiple,false);assert.equal(api.projectState.pickerTarget,'saved');input.files=[];await input.listeners.change[0]({target:input});
+  api.pickProjectMedia('saved');input.files=[mediaFile({name:'renamed.mp4'})];await input.listeners.change[0]({target:input});
+  assert.equal(api.projectState.pending.loaded.get('saved').fileName,'renamed.mp4');assert.equal(pickerCalls,0);assert.equal(elements.get('btnApplyProject').disabled,false);
+});
+
+test('aborted handle reads report failure while cancelling a chooser returns an empty selection',async()=>{
+  const failure=Object.assign(Error('read aborted'),{name:'AbortError'}),{api}=editor({browser:{showOpenFilePicker:async()=>[{getFile:async()=>{throw failure;}}]}});
+  let reported;assert.equal(await api.chooseMediaFiles(true,{onError:error=>{reported=error;}}),null);assert.equal(reported,failure);
+  const cancelled=editor({browser:{showOpenFilePicker:async()=>{throw Object.assign(Error('cancelled'),{name:'AbortError'});}}});
+  assert.equal((await cancelled.api.chooseMediaFiles()).length,0);
+});
+
+test('project folder selection matches originals, ignores finished exports and resets for repeated choices',async()=>{
+  const {api,elements}=editor();await api.prepareProject(savedFileProject());const input=elements.get('projectMediaFolder');input.value='previous';
+  elements.get('btnProjectFolder').listeners.click[0]();assert.equal(input.clicks,1);assert.equal(input.value,'');
+  input.files=[mediaFile({webkitRelativePath:'作品/original.mp4'}),mediaFile({name:'finished.mp4'}),{name:'作品.lightcut.json',type:'application/json',size:200}];
+  await input.listeners.change[0]({target:input});assert.equal(input.value,'');assert.equal(api.projectState.pending.loaded.size,1);assert.equal(elements.get('btnApplyProject').disabled,false);
+  assert.doesNotMatch(elements.get('projectLoadNote').textContent,/未匹配|finished/);await api.applyProject();
+  assert.equal(api.S.clips.length,1);assert.equal(api.S.sources.length,1);assert.equal(api.buildProject().sources[0].relativePath,'作品/original.mp4');
+});
+
+test('folder matching never guesses a differently named replacement and explains non-media folders',async()=>{
+  const {api,elements}=editor();await api.prepareProject(savedFileProject());const input=elements.get('projectMediaFolder');
+  input.files=[mediaFile({name:'finished.mp4'})];await input.listeners.change[0]({target:input});assert.equal(api.projectState.pending.loaded.size,0);assert.equal(elements.get('btnApplyProject').disabled,true);assert.match(elements.get('projectLoadNote').textContent,/所选文件夹未找到/);
+  input.files=[{name:'project.json',type:'application/json',size:20}];await input.listeners.change[0]({target:input});assert.match(elements.get('projectLoadNote').textContent,/没有支持的视频/);
+  input.files=[mediaFile()];await input.listeners.change[0]({target:input});assert.equal(elements.get('btnApplyProject').disabled,false);
+});
+
+test('unmatched batch selections name the selected files in the dialog instead of silently leaving rows missing',async()=>{
+  const project=savedFileProject();project.sources.push({...project.sources[0],id:'other',name:'other.mp4',fileName:'other.mp4'});
+  const {api,elements}=editor();await api.prepareProject(project);await api.relinkProjectFiles([mediaFile({name:'different.mp4'})]);
+  assert.equal(api.projectState.pending.loaded.size,0);assert.match(elements.get('projectLoadNote').textContent,/已选择 1 个文件.*different\.mp4.*选择替代/);
+  assert.equal(elements.get('btnApplyProject').disabled,true);assert.equal(api.S.busy,false);
+});
+
+test('extra selected exports do not request replacement once all required project media are linked',async()=>{
+  const {api,elements}=editor();await api.prepareProject(savedFileProject());await api.relinkProjectFiles([mediaFile(),mediaFile({name:'finished.mp4'})]);
+  assert.equal(elements.get('btnApplyProject').disabled,false);assert.match(elements.get('projectLoadNote').textContent,/素材已全部关联/);assert.doesNotMatch(elements.get('projectLoadNote').textContent,/finished|未匹配|选择替代/);
+});
+
+test('a queued close event from an earlier dialog cannot discard a newly opened project',async()=>{
+  const {api,elements}=editor();await api.prepareProject(savedFileProject());
+  elements.get('btnCloseProject').listeners.click[0]();assert.equal(api.projectState.pending,null);
+  await api.prepareProject(savedFileProject());const pending=api.projectState.pending;
+  elements.get('projectDialog').listeners.close[0]();assert.equal(api.projectState.pending,pending);
+  await api.relinkProjectFiles([mediaFile()]);assert.equal(elements.get('btnApplyProject').disabled,false);await api.applyProject();assert.equal(api.S.clips.length,1);
+  elements.get('projectDialog').listeners.close[0]();assert.equal(api.projectState.pending,null);
 });
 
 test('a row can explicitly replace a renamed file; wrong types and short files show actionable errors',async()=>{

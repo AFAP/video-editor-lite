@@ -94,7 +94,9 @@ export function createSpeechService({ffmpeg,run,probe,uploads,inDir,workDir,fetc
       if(input.language&&input.language!=='auto')parameters.language_hints=[String(input.language).slice(0,8)];
       const response=await request(cfg.asrUrl,{model:cfg.asrModel,input:{messages:[{role:'user',content:[{type:'input_audio',input_audio:{data:'data:audio/wav;base64,'+audio.toString('base64')}}]}]},parameters},cfg,job.controller.signal);
       await readCloudEvents(response,data=>{
-        const output=data.output||{};if(output.text)recognizedText=output.text;for(const s of output.sentences|| (output.sentence?[output.sentence]:[])){
+        const output=data.output||{},content=(output.choices||data.choices)?.[0]?.message?.content;
+        if(output.text)recognizedText=output.text;else if(typeof content==='string')recognizedText=content;else if(Array.isArray(content))recognizedText=content.map(part=>part.text||'').join('');
+        for(const s of output.sentences|| (output.sentence?[output.sentence]:[])){
           if(s.words?.some(w=>Number.isFinite(w.end_time))||Number.isFinite(s.end_time))sentences.set(String(s.sentence_id??s.begin_time??0),s);
         }
       });
