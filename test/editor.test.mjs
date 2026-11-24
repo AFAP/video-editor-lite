@@ -91,7 +91,7 @@ function editor({storageBlocked = false, tracks = [], page = {}, browser = {}, o
     parseSrt,serializeSrt,setSpeechDraft,speechState,validateSpeechDraft,applySpeechCaptions,
     buildProject,validateProject,prepareProject,applyProject,projectState,connectPreviousClip,transitionState,
     relinkProjectFiles,pickProjectMedia,closeProjectDialog,matchProjectFiles,chooseMediaFiles,rememberSourceFile,loadSourceFile,authorizeProjectSource,
-    setSelection,selectionEntries,groupSelection,detachAudio,rippleDelete,closeTimelineGaps,isLocked,clipKind,
+    setSelection,selectionEntries,groupSelection,detachAudio,rippleDelete,closeTimelineGaps,isLocked,clipKind,snapStep,alignmentIssues,applyAlignmentFix,
     animationValue,setAnimationValue,validateAnimation,applyCaptionStyle,openCaptionEditor,detectBridge,openSpeech,
     transitionCuts,transitionItems,insertTransition,removeTransition,selectedTransition,reconcileLinkedTransitions,paintTransitionDemo,
     createFancyText,applyFancyToSelected,applyTextPreset,FANCY_TEXT_PRESETS,FANCY_CATEGORIES,TEXT_PRESETS,createSticker,STICKER_ASSETS,STICKER_CATEGORIES,STICKER_ATLAS_SIZE,drawTextLayer,filterLibraryItems,
@@ -1202,4 +1202,29 @@ test('snapping uses the nearest edge and retains fractional cut times without ro
   next.start=3;const snapped=api.snapStart(.738,next.id);assert.equal(snapped,.737777,'nearest edge wins over a nearby playhead');
   assert.equal(api.moveClipTo(next,snapped,'v1'),true);assert.equal(next.start,.737777);
   assert.equal(api.activeRows(.73776)[0].clip.id,clip.id);assert.equal(api.activeRows(.737777)[0].clip.id,next.id);assert.equal(api.activeRows(.73779)[0].clip.id,next.id);
+});
+
+test('manual lengths snap to the 0.1s grid while Alt keeps free values',()=>{
+  const {api}=editor();
+  assert.ok(Math.abs(api.snapStep(3.38)-3.4)<1e-9,'3.38 rounds up to 3.4');
+  assert.ok(Math.abs(api.snapStep(3.31)-3.3)<1e-9,'3.31 rounds down to 3.3');
+  assert.ok(Math.abs(api.snapStep(3.34)-3.3)<1e-9);
+  assert.equal(api.snapStep(-2),0,'never returns negative time');
+  assert.ok(Math.abs(api.snapStep(3.38,0)-3.38)<1e-12,'Alt bypasses the grid');
+});
+
+test('alignment check reports off-grid lengths and sub-frame seams, and the fix lands on 0.1s boundaries',()=>{
+  const {api}=editor(),{source,clip}=seed(api);
+  clip.in=0;clip.out=3.38;clip.start=0;
+  const next=api.appendClip(source,0,3.38);next.start=3.39;
+  const issues=api.alignmentIssues();
+  assert.ok(issues.some(issue=>issue.type==='grid'&&issue.clip.id===clip.id),'two-decimal length is flagged');
+  assert.ok(issues.some(issue=>issue.type==='gap'&&issue.clip.id===next.id),'sub-frame gap is flagged');
+  api.applyAlignmentFix();
+  for(const item of api.S.clips){
+    assert.ok(Math.abs(item.start*10-Math.round(item.start*10))<1e-6,'start sits on the 0.1s grid');
+    assert.ok(Math.abs((item.out-item.in)*10-Math.round((item.out-item.in)*10))<1e-6,'length sits on the 0.1s grid');
+  }
+  assert.equal(api.alignmentIssues().filter(issue=>issue.type!=='grid').length,0,'seams are closed');
+  assert.ok(Math.abs(api.S.clips[1].start-api.S.clips[0].start-(api.S.clips[0].out-api.S.clips[0].in))<1e-6,'clips stay contiguous');
 });

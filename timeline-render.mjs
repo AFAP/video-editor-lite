@@ -82,7 +82,9 @@ export async function renderTimeline(job,{ffmpeg,run,overlays,work}) {
     }
     if(!clip.keyframes?.opacity?.length&&opacity!==1)effects.unshift(`colorchannelmixer=aa=${decimal(opacity)}`);
     // Reuse the decoded, scaled still; fades and animated opacity remain downstream of the cache.
-    filters.push(`[${prepared}]${cacheStill(clip)?`loop=loop=-1:size=1:start=0,trim=duration=${decimal(duration)},`:''}${effects.length?effects.join(',')+',':''}setpts=PTS+${decimal(clip.start)}/TB[layer${index}]`);
+    // A source can end on its last frame while the overlay window still covers that timestamp,
+    // which shows the black base for one frame. Hold one extra frame so cuts never blink.
+    filters.push(`[${prepared}]${cacheStill(clip)?`loop=loop=-1:size=1:start=0,trim=duration=${decimal(duration)},`:''}${effects.length?effects.join(',')+',':''}setpts=PTS+${decimal(clip.start)}/TB,tpad=stop_mode=clone:stop_duration=${decimal(1/job.fps)}[layer${index}]`);
     const next='composite'+index;
     filters.push(`[${video}][layer${index}]overlay=x='(W-w)/2+${x}${move}':y='(H-h)/2+${y}':`+
       `enable='gte(t,${decimal(clip.start)})*lt(t,${decimal(clip.start+duration)})':eof_action=pass:repeatlast=0[${next}]`);

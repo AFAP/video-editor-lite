@@ -2008,6 +2008,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
 #captionDialog{width:min(960px,94vw);max-height:85vh;padding:20px}.caption-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.caption-toolbar input{min-width:100px;flex:1}.caption-rows{overflow:auto;max-height:55vh}.caption-row{display:grid;grid-template-columns:112px minmax(0,1fr) 50px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}.caption-row textarea{width:100%;min-height:42px;resize:vertical}.caption-row small{color:var(--dim)}
 
 .project-media-info{min-width:0;flex:1;display:grid;gap:5px}.project-media-info small{white-space:normal;overflow-wrap:anywhere}.project-media-error{color:#f0a49c!important}.project-media-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.project-media-actions .btn{white-space:nowrap}#projectLinks{max-height:45vh}.project-body>.speech-row{margin-top:12px}@media(max-width:580px){.project-media-row{align-items:flex-start;flex-direction:column}.project-media-actions{justify-content:flex-start}}
+.align-list{max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:6px;margin:2px 0 10px}.align-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:6px 10px;border-radius:9px;background:rgba(255,255,255,.05);font-size:13px}.align-row small{color:var(--dim)}
 #imageDurationDialog{width:min(540px,94vw);max-height:90vh;overflow:auto}#imageDurationDialog .speech-row>label{width:100px;font-size:12px;color:var(--dim)}#imageDurationDialog input[type=number]{flex:1;min-width:100px;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:4px;padding:8px}#imageDurationDialog .project-body>.note{display:block;margin:14px 0;line-height:1.8}#imageDurationDialog .primary{width:100%;justify-content:center}
 
 .value-reset{flex:none;width:22px;height:26px;background:none;border:0;color:var(--dim);cursor:pointer;padding:0;font-size:15px}.value-reset:hover{color:var(--accent)}.fld>.transform-number{width:76px;flex:none}.fld>input[type=range]{min-width:28px}.property-options{display:grid;gap:12px;font-size:12px;margin:18px 0}#propertiesDialog,#replaceClipDialog{width:min(560px,94vw);max-height:90vh;overflow:auto}#propertiesDialog .note,#replaceClipDialog .note{margin:12px 0;line-height:1.8}#imageMotionControls{margin:12px 0;padding:10px 0;border-top:1px solid var(--line)}#replaceClipSource{max-width:100%}.value-reset:disabled{opacity:.4;cursor:default}
@@ -2123,13 +2124,13 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
     <button class="tool-btn" id="btnAddText" title="添加文字 (T)" aria-label="添加文字 (T)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16M12 5v15M8 20h8"/></svg>文字<kbd>T</kbd></button>
     <button class="tool-btn" id="btnDuplicate" title="复制片段或文字 (Ctrl+D)" aria-label="复制片段或文字 (Ctrl+D)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M15 8V4H4v11h4"/></svg><span>复制</span></button>
     <button class="tool-btn" id="btnDel" title="删除所选 (Delete)" aria-label="删除所选 (Delete)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg><span>删除</span></button>
-    <button class="tool-btn" id="btnRippleDelete" title="Shift+Delete：删除所选时间区间，未锁定轨道同步收拢">波纹删除</button><button class="tool-btn" id="btnCloseGaps" title="清除所有轨道均无内容的空白区间；锁定轨道不移动">清除空隙</button><button class="tool-btn" id="btnImageDurations" title="批量修改图片时长并顺延本轨后续片段">图片时长</button><button class="tool-btn" id="btnCaptions" title="搜索、编辑字幕，点击时间定位画面">字幕</button><span class="sep"></span><label class="track-adder"><span>＋ 添加轨道 ▾</span><select id="trackAdder" aria-label="动态添加轨道" title="可继续添加画面、音频或文字轨道"><option value="">选择要添加的轨道</option><option value="visual">画面轨（视频 / 图片）</option><option value="audio">音频轨（配乐 / 旁白）</option><option value="text">文字轨</option></select></label><span class="grow"></span><span class="chip" id="chipInfo">0 段</span><span class="sep"></span>
+    <button class="tool-btn" id="btnRippleDelete" title="Shift+Delete：删除所选时间区间，未锁定轨道同步收拢">波纹删除</button><button class="tool-btn" id="btnCloseGaps" title="清除所有轨道均无内容的空白区间；锁定轨道不移动">清除空隙</button><button class="tool-btn" id="btnAlignClips" title="检查不在 0.1 秒网格上的片段和同轨小于一帧的缝隙，可一键对齐">对齐检查</button><button class="tool-btn" id="btnImageDurations" title="批量修改图片时长并顺延本轨后续片段">图片时长</button><button class="tool-btn" id="btnCaptions" title="搜索、编辑字幕，点击时间定位画面">字幕</button><span class="sep"></span><label class="track-adder"><span>＋ 添加轨道 ▾</span><select id="trackAdder" aria-label="动态添加轨道" title="可继续添加画面、音频或文字轨道"><option value="">选择要添加的轨道</option><option value="visual">画面轨（视频 / 图片）</option><option value="audio">音频轨（配乐 / 旁白）</option><option value="text">文字轨</option></select></label><span class="grow"></span><span class="chip" id="chipInfo">0 段</span><span class="sep"></span>
     <div class="zoom-group"><button class="icon-btn" id="btnZoomOut" title="缩小时间线" aria-label="缩小时间线"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><span id="zoomLabel">适应</span><button class="icon-btn" id="btnZoomIn" title="放大时间线" aria-label="放大时间线"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="btn ghost sm" id="btnFit" title="让所有片段适应窗口">适应</button></div>
   </div>
   <div class="tl-body"><div class="tl-head-viewport"><div class="tl-head" id="trackHeads"></div></div>
     <div class="tl-scroll" id="tlScroll"><div class="tl-inner" id="tlInner"><div class="ruler" id="ruler"></div><div class="timeline-lanes" id="trackV"></div><div class="timeline-empty" id="timelineEmpty"><b>你的故事线，还是一张白纸</b> · 点击左侧素材「＋」加入轨道，或添加背景开始剪辑</div><div class="playhead" id="playhead"></div></div></div>
   </div>
-  <div class="tl-foot"><span><kbd>Space</kbd> 播放 / 暂停</span><span><kbd>← →</kbd> 逐帧定位</span><span><kbd>Ctrl + 滚轮</kbd> 缩放</span><span class="grow"></span><span>Shift / Ctrl 多选 · 空白处框选 · Shift+Delete 波纹删除</span></div>
+  <div class="tl-foot"><span><kbd>Space</kbd> 播放 / 暂停</span><span><kbd>← →</kbd> 逐帧定位</span><span><kbd>Ctrl + 滚轮</kbd> 缩放</span><span class="grow"></span><span>Shift / Ctrl 多选 · 空白处框选 · Shift+Delete 波纹删除 · Alt 精细调整</span></div>
 </section>
 </main>
 <footer class="app-status"><span class="status-local">本地处理</span><span class="status-detail">单页 · 零依赖</span><span class="grow"></span><span id="draftStatus">工程可保存</span><span id="sessionStatus">准备就绪</span><span id="outputStatus">1280 × 720 · 30 fps</span></footer>
@@ -2174,6 +2175,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
           <a class="btn primary" id="dlLink" download>下载</a>
         </div>
       </section></dialog>
+<dialog id="alignDialog" aria-labelledby="alignTitle"><div class="dialog-heading"><div><h2 id="alignTitle">片段对齐检查</h2><p>手动调长度留下的两位小数，会在导出时补齐；这里可以把它们整理成 0.1 秒。</p></div><span class="grow"></span><button class="icon-btn" id="btnCloseAlign" title="关闭对齐检查" aria-label="关闭对齐检查">×</button></div><div class="project-body"><p id="alignSummary" class="note" role="status"></p><div id="alignList" class="align-list"></div><p class="speech-note">按住 <kbd>Alt</kbd> 拖动片段可以跳过 0.1 秒吸附，做逐帧微调。</p><div class="speech-row"><button class="btn primary" id="btnAlignApply">全部对齐到 0.1 秒</button><button class="btn" id="btnCloseAlign2">关闭</button></div></div></dialog>
 <dialog id="helpDialog" aria-labelledby="helpTitle"><div class="dialog-heading"><h2 id="helpTitle">剪辑快捷键</h2><span class="grow"></span><button class="icon-btn" id="btnCloseHelp" title="关闭快捷键说明" aria-label="关闭快捷键说明"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div><div class="shortcut-list"><div>导入素材<kbd>Ctrl O</kbd></div><div>保存工程<kbd>Ctrl S</kbd></div><div>导出设置<kbd>Ctrl E</kbd></div><div>播放 / 暂停<kbd>Space</kbd></div><div>向前 / 后一帧<kbd>← / →</kbd></div><div>分割片段<kbd>S</kbd></div><div>添加文字<kbd>T</kbd></div><div>复制片段<kbd>Ctrl C</kbd></div><div>粘贴到播放头<kbd>Ctrl V</kbd></div><div>创建副本<kbd>Ctrl D</kbd></div><div>删除所选<kbd>Delete</kbd></div><div>撤销 / 重做<kbd>Ctrl Z / Ctrl Shift Z</kbd></div></div></dialog>
 <dialog id="speechDialog" aria-labelledby="speechTitle">
   <div class="speech-heading"><div class="speech-mark">✦</div><div><h2 id="speechTitle">AI 语音工作台</h2><p>识别字幕，生成配音，把声音接到故事里。</p></div><span class="grow"></span><span class="speech-config-state" id="speechConfigState">待配置 Key</span><button class="icon-btn" id="btnCloseSpeech" aria-label="关闭 AI 语音工作台">×</button></div>
@@ -3594,6 +3596,12 @@ function selectText(id) {
   }
 }
 
+/* 手动拖动、左右裁剪默认吸附到 0.1 秒；按住 Alt 可精细调整。 */
+const TIMELINE_SNAP=0.1;
+function snapStep(value,step=TIMELINE_SNAP){
+  if(!(step>0))return Math.max(0,value);
+  return Math.max(0,Math.round(value/step)*step);
+}
 function snapStart(value,id) {
   const points=[0,S.time,...layout().filter(row=>row.clip.id!==id).flatMap(row=>[row.start,row.end])];
   const match=points.filter(point=>Math.abs(point-value)*currentPps()<8).sort((a,b)=>Math.abs(a-value)-Math.abs(b-value))[0];return Math.max(0,match??value);
@@ -3678,18 +3686,27 @@ function startTimelineDrag(event,node,mode) {
   const move=e=>{
     if(!moved&&Math.abs(e.clientX-startX)+Math.abs(e.clientY-startY)<4)return;moved=true;
     const delta=(e.clientX-startX)/currentPps(),duration=isText?origin.end-origin.start:origin.out-origin.in;
+    // Alt 跳过 0.1 秒吸附，做逐帧/逐像素的精调。
+    const step=e.altKey?0:TIMELINE_SNAP,grid=value=>step>0?snapStep(value,step):Math.max(0,value);
     const laneIndex=Math.floor((e.clientY-$('#trackV').getBoundingClientRect().top)/LANE_HEIGHT),target=S.tracks[laneIndex];
     if(mode==='move'){
-      const at=snapStart(origin.start+delta,item.id);
+      const raw=origin.start+delta,edge=snapStart(raw,item.id);
+      const at=Math.max(0,edge!==raw?edge:grid(raw));
       if(isText){item.start=at;item.end=at+duration;if(target?.kind==='text')item.trackId=target.id;}
       else moveClipTo(item,at,target?.kind===clipKind(item)?target.id:item.trackId);
     }else if(isText){
-      if(mode==='left')item.start=clamp(origin.start+delta,0,origin.end-MIN_CLIP);
-      else item.end=Math.max(origin.start+MIN_CLIP,origin.end+delta);
+      if(mode==='left')item.start=clamp(grid(origin.start+delta),0,origin.end-MIN_CLIP);
+      else item.end=Math.max(origin.start+MIN_CLIP,grid(origin.end+delta));
     }else if(mode==='left'){
       const shift=clamp(delta,-Math.min(origin.in,origin.start),duration-MIN_CLIP);
-      item.in=origin.in+shift;item.start=origin.start+shift;
-    }else item.out=clamp(origin.out+delta,origin.in+MIN_CLIP,sourceOfId(item.sourceId).duration);
+      const minAt=origin.start-Math.min(origin.in,origin.start);
+      const at=clamp(grid(origin.start+shift),minAt,origin.start+duration-MIN_CLIP);
+      item.start=at;item.in=origin.in+(at-origin.start);
+    }else{
+      const rawEnd=origin.start+duration+delta,edge=snapStart(rawEnd,item.id);
+      const end=edge!==rawEnd?edge:grid(rawEnd);
+      item.out=clamp(origin.in+(end-origin.start),origin.in+MIN_CLIP,sourceOfId(item.sourceId).duration);
+    }
     renderTimeline();drawAt(S.time);
   };
   const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);renderTimeline();renderPanels();updateSummary();seek(S.time);commitHistory();};
@@ -4607,7 +4624,7 @@ $('#btnHelp').addEventListener('click', () => $('#helpDialog').showModal());
 $('#btnCloseHelp').addEventListener('click', () => $('#helpDialog').close());
 $('#btnCloseExport').addEventListener('click', () => { if (S.rendering) return toast('正在导出，请等待完成或点击取消'); $('#exportDialog').close(); });
 $('#exportDialog').addEventListener('cancel', event => { if (S.rendering) { event.preventDefault(); toast('正在导出，请等待完成或点击取消'); } });
-for (const id of ['#exportDialog', '#helpDialog']) $(id).addEventListener('close', () => { if ($(id).contains($('#toast'))) document.body.appendChild($('#toast')); });
+for (const id of ['#exportDialog', '#helpDialog', '#alignDialog']) $(id).addEventListener('close', () => { if ($(id).contains($('#toast'))) document.body.appendChild($('#toast')); });
 $('#projectName').value = settings.name;
 $('#projectName').addEventListener('input', () => { settings.name = $('#projectName').value; $('#setName').value = settings.name; saveSettings(); });
 $('#setName').addEventListener('input', () => { $('#projectName').value = settings.name; });
@@ -5691,6 +5708,62 @@ function rippleDelete(){
   for(const item of transitionItems())if(!isLocked(item.clip)&&intervals.some(([a,b])=>item.clip.start<b&&item.clip.start+item.clip.out-item.clip.in>a||item.from&&item.from.start<b&&item.from.start+item.from.out-item.from.in>a))removeTransition(item,{restorePosition:false});
   removeTimeIntervals(intervals);finishEdit();toast('已波纹删除，未锁定轨道同步收拢；可撤销');
 }
+/* ------------------------------------------------------- 片段对齐检查 */
+const ALIGN_STEP=0.1;
+function alignGridOk(value){const scaled=value/ALIGN_STEP;return Math.abs(scaled-Math.round(scaled))<1e-6;}
+function clipEnd(clip){return clip.start+(clip.out-clip.in);}
+function alignmentIssues(){
+  const frame=1/Math.max(1,Number(settings.fps)||30),issues=[];
+  for(const clip of S.clips){
+    const start=clip.start,end=clipEnd(clip);
+    if(!alignGridOk(start)||!alignGridOk(end))issues.push({type:'grid',clip,start,end});
+  }
+  for(const track of S.tracks){
+    const rows=S.clips.filter(c=>c.trackId===track.id).sort((a,b)=>a.start-b.start||(a.id<b.id?-1:1));
+    for(let index=1;index<rows.length;index+=1){
+      const previous=rows[index-1],gap=rows[index].start-clipEnd(previous);
+      if(Math.abs(gap)<1e-6||Math.abs(gap)>=frame)continue;
+      issues.push({type:gap>0?'gap':'overlap',clip:rows[index],previous,gap});
+    }
+  }
+  return issues;
+}
+function renderAlignmentCheck(){
+  const issues=alignmentIssues(),grid=issues.filter(issue=>issue.type==='grid').length,seams=issues.length-grid;
+  $('#alignSummary').textContent=issues.length
+    ? '发现 '+grid+' 个片段不在 0.1 秒网格上，'+seams+' 处同轨缝隙或重叠不足一帧。'
+    : '所有片段都落在 0.1 秒网格上，同轨也没有不足一帧的缝隙。';
+  const rows=issues.slice(0,100).map(issue=>{
+    const name=sourceOfId(issue.clip.sourceId)?.name||'片段';
+    if(issue.type!=='grid')return '<div class="align-row"><span>'+escapeHtml(name)+'</span><small>'+(issue.type==='gap'?'与上一段留了 ':'与上一段重叠了 ')+Math.abs(issue.gap).toFixed(3)+' 秒（不足一帧）</small></div>';
+    return '<div class="align-row"><span>'+escapeHtml(name)+'</span><small>'+fmt(issue.start)+' → '+fmt(issue.end)+'，建议 '+fmt(snapStep(issue.start))+' / '+fmt(snapStep(issue.end))+'</small></div>';
+  });
+  if(issues.length>100)rows.push('<div class="align-row"><span>还有 '+(issues.length-100)+' 项没有显示</span></div>');
+  $('#alignList').innerHTML=rows.join('')||'<div class="align-row"><span>没有需要处理的片段。</span></div>';
+  $('#btnAlignApply').disabled=!issues.length;
+}
+function applyAlignmentFix(){
+  if(S.rendering||S.busy)return;
+  if(!alignmentIssues().length)return toast('片段已经对齐');
+  stopPlayback();commitHistory();
+  const frame=1/Math.max(1,Number(settings.fps)||30);
+  for(const clip of S.clips){
+    const source=sourceOfId(clip.sourceId);
+    const limit=source&&source.kind!=='image'&&Number.isFinite(source.duration)?source.duration:Infinity;
+    const duration=Math.max(ALIGN_STEP,snapStep(Math.max(ALIGN_STEP,clip.out-clip.in)));
+    clip.start=snapStep(clip.start);
+    clip.out=clamp(clip.in+duration,clip.in+MIN_CLIP,Math.max(clip.in+MIN_CLIP,limit));
+  }
+  // 同一轨道上首尾相接的片段再合拢一次，避免对齐后留下不足一帧的缝隙。
+  for(const track of S.tracks){
+    const rows=S.clips.filter(c=>c.trackId===track.id).sort((a,b)=>a.start-b.start||(a.id<b.id?-1:1));
+    for(let index=1;index<rows.length;index+=1){
+      const gap=rows[index].start-clipEnd(rows[index-1]);
+      if(Math.abs(gap)>1e-6&&Math.abs(gap)<frame)rows[index].start=clipEnd(rows[index-1]);
+    }
+  }
+  finishEdit();renderAlignmentCheck();toast('已按 0.1 秒对齐 '+S.clips.length+' 个片段');
+}
 function closeTimelineGaps(){
   if(S.rendering||S.busy)return;
   const occupied=mergeIntervals([...layout().map(r=>[r.start,r.end]),...S.texts.map(t=>[t.start,t.end])]);let end=0;const gaps=[];
@@ -5863,6 +5936,9 @@ function applyCaptionStyle(scope='track'){
   finishEdit();toast('已统一 '+targets.length+' 条文字样式，内容与时间保持原样');
 }
 $('#btnRippleDelete').addEventListener('click',rippleDelete);$('#btnCloseGaps').addEventListener('click',closeTimelineGaps);
+$('#btnAlignClips').addEventListener('click',()=>{if(S.rendering||S.busy)return toast('请等待当前任务完成',true);renderAlignmentCheck();$('#alignDialog').showModal();});
+for(const id of ['#btnCloseAlign','#btnCloseAlign2'])$(id).addEventListener('click',()=>$('#alignDialog').close());
+$('#btnAlignApply').addEventListener('click',applyAlignmentFix);
 $('#btnGroup').addEventListener('click',()=>groupSelection());$('#btnUngroup').addEventListener('click',()=>groupSelection(true));
 $('#btnWaveformRetry').addEventListener('click',()=>{const source=sourceOfId(selectedClip()?.sourceId);if(!source)return;delete source.waveform;delete source.waveformError;queueWaveform(source,source.file);renderTimeline();});
 $('#btnDetachAudio').addEventListener('click',detachAudio);$('#btnCaptions').addEventListener('click',openCaptionEditor);
