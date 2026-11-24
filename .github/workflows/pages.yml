@@ -43,6 +43,21 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+      - name: Wait for pages artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 30); do
+            body=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=github-pages&per_page=1")
+            count=$(echo "$body" | jq -r '.total_count // 0')
+            echo "attempt $attempt: github-pages artifacts = $count"
+            if [ "$count" -gt 0 ]; then exit 0; fi
+            sleep 2
+          done
+          echo "::error::github-pages artifact never appeared in the artifacts API"
+          echo "$body" | head -c 2000
+          exit 1
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v5
