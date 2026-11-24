@@ -2027,7 +2027,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
     <span class="header-divider" style="margin:0 10px"></span>
     <button class="btn sm speech-launch" id="btnSpeech" title="字幕识别与 AI 配音">✦ AI 语音</button>
     <button class="icon-btn" id="btnHelp" title="快捷键 (?)" aria-label="快捷键 (?)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"/></svg></button>
-    <button class="btn ghost" id="btnImport" title="导入素材 (Ctrl+O)" aria-label="导入素材 (Ctrl+O)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></svg>导入</button>
+    <button class="btn ghost" id="btnImport" title="导入素材 (Ctrl+O)；按住 Shift 可用「记住文件授权」的选择窗口" aria-label="导入素材 (Ctrl+O)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></svg>导入</button>
     <button class="btn primary" id="btnExport" title="导出视频 (Ctrl+E)" aria-label="导出视频 (Ctrl+E)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v12m-5-5 5 5 5-5M4 17v3h16v-3"/></svg>导出视频</button>
   </div>
 </header>
@@ -2676,10 +2676,29 @@ async function importPickedFiles(files){
   S.busy=true;refreshHistoryUi();
   try{await addFiles(files);}finally{S.busy=false;refreshHistoryUi();}
 }
-async function pickImportMedia(){
-  if(S.busy||S.rendering)return;
-  const files=await chooseMediaFiles();
-  if(files===null)$('#fileInput').click();else await importPickedFiles(files);
+let pickerAwaiting=false;
+async function pickImportMedia(useFileSystemPicker=false){
+  if(S.rendering)return toast('正在导出，导出结束后再导入素材',true);
+  if(S.busy)return toast('上一个素材还在处理，请稍候；长时间没有进展可按 F5 刷新',true);
+  const classicPicker=()=>{const input=$('#fileInput');input.value='';input.click();};
+  // Chrome's File System Access picker sometimes closes without returning a file on Windows,
+  // which looks exactly like "点了没反应". The plain file input is the default and always works.
+  if(!useFileSystemPicker||typeof window.showOpenFilePicker!=='function')return classicPicker();
+  // Hold Shift: a picker that never settles falls back to a plain input on the next click.
+  if(pickerAwaiting){pickerAwaiting=false;toast('上次的文件选择窗口没有响应，这次改用普通文件选择',true);classicPicker();return refreshHistoryUi();}
+  pickerAwaiting=true;$('#sessionStatus').textContent='正在打开文件选择窗口…';
+  let files=null;
+  const started=performance.now();
+  try{files=await chooseMediaFiles();}
+  finally{pickerAwaiting=false;refreshHistoryUi();}
+  const elapsed=performance.now()-started;
+  if(files===null)return classicPicker();
+  if(!files.length){
+    // A picker that aborts within a few milliseconds never opened a window at all.
+    if(elapsed<350){toast('浏览器的文件窗口没有打开，已改用普通文件选择',true);return classicPicker();}
+    toast('没有选到文件，已改用普通文件选择',true);return classicPicker();
+  }
+  await importPickedFiles(files);
 }
 async function loadImageFile(file) {
   const url=URL.createObjectURL(file),img=new Image();img.src=url;
@@ -4335,8 +4354,9 @@ $('#setName').addEventListener('input', () => {
 });
 
 /* ------------------------------------------------------------------ 事件 */
-$('#btnImport').addEventListener('click', pickImportMedia);
-$('#btnImport2').addEventListener('click', pickImportMedia);
+const openImportDialog=(event)=>void pickImportMedia(Boolean(event?.shiftKey));
+$('#btnImport').addEventListener('click', openImportDialog);
+$('#btnImport2').addEventListener('click', openImportDialog);
 $('#fileInput').addEventListener('change', async (event) => {
   const files = Array.from(event.target.files || []);
   event.target.value = '';
@@ -4408,21 +4428,27 @@ window.addEventListener('drop', async (event) => {
   dragDepth = 0;
   $('#dropCover').hidden = true;
   if (S.rendering || document.querySelector('dialog[open]')) return;
-  if (S.busy) return;
-  if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length) {
-    const files=Array.from(event.dataTransfer.files);
-    // Capture handles during the drop event, before DataTransfer becomes protected.
-    const handles=Array.from(event.dataTransfer.items||[]).filter(item=>item.kind==='file').map(item=>{
-      try{return item.getAsFileSystemHandle?.().catch(()=>null);}catch{return null;}
-    });
-    S.busy = true; refreshHistoryUi();
-    try {
-      for(const handle of await Promise.all(handles))if(handle?.kind==='file'){
-        try{const picked=await handle.getFile(),matches=files.filter(file=>sameMediaFile({name:picked.name,size:picked.size,kind:mediaKind(picked)},file));if(matches.length===1)bindPickedFile(matches[0],handle);}catch{}
-      }
-      await addFiles(files);
-    } finally { S.busy = false; refreshHistoryUi(); }
+  if (S.busy) return toast('上一个素材还在处理，请稍候；长时间没有进展可按 F5 刷新',true);
+  const files=Array.from(event.dataTransfer?.files||[]);
+  if(!files.length){
+    const types=Array.from(event.dataTransfer?.types||[]);
+    if(types.includes('Files'))toast('没读到拖入的文件，请从资源管理器把视频、图片或音频拖进来',true);
+    else if(types.some(type=>['text/uri-list','text/html','DownloadURL'].includes(type)))toast('网页里的链接或图片请先保存到电脑，再从资源管理器拖进来',true);
+    return;
   }
+  // Capture handles during the drop event, before DataTransfer becomes protected.
+  const handles=Array.from(event.dataTransfer.items||[]).filter(item=>item.kind==='file').map(item=>{
+    try{return item.getAsFileSystemHandle?.().catch(()=>null);}catch{return null;}
+  });
+  S.busy = true; refreshHistoryUi();
+  try {
+    // A shell or network file handle can stay pending forever; never let it block the drop.
+    const captured=await Promise.race([Promise.all(handles),new Promise(resolve=>setTimeout(()=>resolve([]),2000))]);
+    for(const handle of captured)if(handle?.kind==='file'){
+      try{const picked=await handle.getFile(),matches=files.filter(file=>sameMediaFile({name:picked.name,size:picked.size,kind:mediaKind(picked)},file));if(matches.length===1)bindPickedFile(matches[0],handle);}catch{}
+    }
+    await addFiles(files);
+  } finally { S.busy = false; refreshHistoryUi(); }
 });
 
 window.addEventListener('beforeunload', (event) => {
@@ -4566,7 +4592,7 @@ $('.library-tabs').addEventListener('keydown',event=>{
 });
 $('#sourceSearch').addEventListener('input', renderSources);
 $('#sourceUsageFilter').addEventListener('change',renderSources);
-for (const id of ['#btnLibraryImport', '#btnDropImport']) $(id).addEventListener('click', pickImportMedia);
+for (const id of ['#btnLibraryImport', '#btnDropImport']) $(id).addEventListener('click', openImportDialog);
 $('#btnTryAsset').addEventListener('click', () => setLibraryTab(true));
 $('#btnUndo').addEventListener('click', undo);
 $('#btnRedo').addEventListener('click', redo);
@@ -6015,8 +6041,8 @@ async function loadReplacementFile(file){
   finally{S.busy=false;$('#btnPickReplacement').disabled=false;previewReplacement();refreshHistoryUi();}
 }
 $('#btnReplaceClip').addEventListener('click',openReplacement);
-$('#btnPickReplacement').addEventListener('click',async()=>{const files=await chooseMediaFiles(false);if(files===null)$('#replacementFile').click();else if(files[0])await loadReplacementFile(files[0]);});
-$('#replacementFile').addEventListener('change',async event=>{const file=event.target.files?.[0];event.target.value='';await loadReplacementFile(file);});
+$('#btnPickReplacement').addEventListener('click',()=>{const input=$('#replacementFile');input.value='';input.click();});
+$('#replacementFile').addEventListener('change',async event=>{const file=event.target.files?.[0];event.target.value='';if(file)await loadReplacementFile(file);});
 $('#replaceClipSource').addEventListener('change',()=>{if(S.busy)return;const pending=replacementState.pending;if(!pending)return;if(pending.owned)releaseProjectSource(pending.source);pending.source=sourceOfId($('#replaceClipSource').value);pending.owned=false;previewReplacement();});
 $('#replaceClipTiming').addEventListener('change',previewReplacement);
 $('#btnCloseReplaceClip').addEventListener('click',()=>{if(closeReplacement())$('#replaceClipDialog').close();});
