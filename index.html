@@ -3688,6 +3688,8 @@ function startTimelineDrag(event,node,mode) {
     const delta=(e.clientX-startX)/currentPps(),duration=isText?origin.end-origin.start:origin.out-origin.in;
     // Alt 跳过 0.1 秒吸附，做逐帧/逐像素的精调。
     const step=e.altKey?0:TIMELINE_SNAP,grid=value=>step>0?snapStep(value,step):Math.max(0,value);
+    // 裁剪时吸附的是「长度」而不是绝对时间点：起点不在整 0.1 秒上时，长度也始终是 3.9 / 3.8 这样的整数倍。
+    const gridDuration=value=>step>0?Math.max(MIN_CLIP,snapStep(value,step)):Math.max(MIN_CLIP,value);
     const laneIndex=Math.floor((e.clientY-$('#trackV').getBoundingClientRect().top)/LANE_HEIGHT),target=S.tracks[laneIndex];
     if(mode==='move'){
       const raw=origin.start+delta,edge=snapStart(raw,item.id);
@@ -3695,16 +3697,23 @@ function startTimelineDrag(event,node,mode) {
       if(isText){item.start=at;item.end=at+duration;if(target?.kind==='text')item.trackId=target.id;}
       else moveClipTo(item,at,target?.kind===clipKind(item)?target.id:item.trackId);
     }else if(isText){
-      if(mode==='left')item.start=clamp(grid(origin.start+delta),0,origin.end-MIN_CLIP);
-      else item.end=Math.max(origin.start+MIN_CLIP,grid(origin.end+delta));
+      if(mode==='left'){
+        const rawStart=origin.start+delta,edge=snapStart(rawStart,item.id);
+        const at=edge!==rawStart?edge:origin.end-gridDuration(origin.end-rawStart);
+        item.start=clamp(at,0,origin.end-MIN_CLIP);
+      }else{
+        const rawEnd=origin.end+delta,edge=snapStart(rawEnd,item.id);
+        item.end=edge!==rawEnd?edge:origin.start+gridDuration(duration+delta);
+      }
     }else if(mode==='left'){
       const shift=clamp(delta,-Math.min(origin.in,origin.start),duration-MIN_CLIP);
-      const minAt=origin.start-Math.min(origin.in,origin.start);
-      const at=clamp(grid(origin.start+shift),minAt,origin.start+duration-MIN_CLIP);
-      item.start=at;item.in=origin.in+(at-origin.start);
+      const rawStart=origin.start+shift,edge=snapStart(rawStart,item.id),endsAt=origin.start+duration;
+      const at=edge!==rawStart?edge:endsAt-gridDuration(duration-shift);
+      item.start=clamp(at,origin.start-Math.min(origin.in,origin.start),endsAt-MIN_CLIP);
+      item.in=origin.in+(item.start-origin.start);
     }else{
       const rawEnd=origin.start+duration+delta,edge=snapStart(rawEnd,item.id);
-      const end=edge!==rawEnd?edge:grid(rawEnd);
+      const end=edge!==rawEnd?edge:origin.start+gridDuration(duration+delta);
       item.out=clamp(origin.in+(end-origin.start),origin.in+MIN_CLIP,sourceOfId(item.sourceId).duration);
     }
     renderTimeline();drawAt(S.time);
@@ -5714,9 +5723,10 @@ function alignGridOk(value){const scaled=value/ALIGN_STEP;return Math.abs(scaled
 function clipEnd(clip){return clip.start+(clip.out-clip.in);}
 function alignmentIssues(){
   const frame=1/Math.max(1,Number(settings.fps)||30),issues=[];
+  // 只看长度：起点在哪儿不影响成片，长度不是 0.1 秒整数倍才是需要整理的对象。
   for(const clip of S.clips){
-    const start=clip.start,end=clipEnd(clip);
-    if(!alignGridOk(start)||!alignGridOk(end))issues.push({type:'grid',clip,start,end});
+    const length=clip.out-clip.in;
+    if(!alignGridOk(length))issues.push({type:'length',clip,length});
   }
   for(const track of S.tracks){
     const rows=S.clips.filter(c=>c.trackId===track.id).sort((a,b)=>a.start-b.start||(a.id<b.id?-1:1));
@@ -5729,14 +5739,14 @@ function alignmentIssues(){
   return issues;
 }
 function renderAlignmentCheck(){
-  const issues=alignmentIssues(),grid=issues.filter(issue=>issue.type==='grid').length,seams=issues.length-grid;
+  const issues=alignmentIssues(),lengths=issues.filter(issue=>issue.type==='length').length,seams=issues.length-lengths;
   $('#alignSummary').textContent=issues.length
-    ? '发现 '+grid+' 个片段不在 0.1 秒网格上，'+seams+' 处同轨缝隙或重叠不足一帧。'
-    : '所有片段都落在 0.1 秒网格上，同轨也没有不足一帧的缝隙。';
+    ? '发现 '+lengths+' 个片段长度不是 0.1 秒的整数倍，'+seams+' 处同轨缝隙或重叠不足一帧。'
+    : '所有片段长度都是 0.1 秒的整数倍，同轨也没有不足一帧的缝隙。';
   const rows=issues.slice(0,100).map(issue=>{
     const name=sourceOfId(issue.clip.sourceId)?.name||'片段';
-    if(issue.type!=='grid')return '<div class="align-row"><span>'+escapeHtml(name)+'</span><small>'+(issue.type==='gap'?'与上一段留了 ':'与上一段重叠了 ')+Math.abs(issue.gap).toFixed(3)+' 秒（不足一帧）</small></div>';
-    return '<div class="align-row"><span>'+escapeHtml(name)+'</span><small>'+fmt(issue.start)+' → '+fmt(issue.end)+'，建议 '+fmt(snapStep(issue.start))+' / '+fmt(snapStep(issue.end))+'</small></div>';
+    if(issue.type!=='length')return '<div class="align-row"><span>'+escapeHtml(name)+'</span><small>'+(issue.type==='gap'?'与上一段留了 ':'与上一段重叠了 ')+Math.abs(issue.gap).toFixed(3)+' 秒（不足一帧）</small></div>';
+    return '<div class="align-row"><span>'+escapeHtml(name)+'</span><small>长度 '+fmt(issue.length)+' → '+fmt(snapStep(Math.max(MIN_CLIP,issue.length)))+'</small></div>';
   });
   if(issues.length>100)rows.push('<div class="align-row"><span>还有 '+(issues.length-100)+' 项没有显示</span></div>');
   $('#alignList').innerHTML=rows.join('')||'<div class="align-row"><span>没有需要处理的片段。</span></div>';
@@ -5751,7 +5761,6 @@ function applyAlignmentFix(){
     const source=sourceOfId(clip.sourceId);
     const limit=source&&source.kind!=='image'&&Number.isFinite(source.duration)?source.duration:Infinity;
     const duration=Math.max(ALIGN_STEP,snapStep(Math.max(ALIGN_STEP,clip.out-clip.in)));
-    clip.start=snapStep(clip.start);
     clip.out=clamp(clip.in+duration,clip.in+MIN_CLIP,Math.max(clip.in+MIN_CLIP,limit));
   }
   // 同一轨道上首尾相接的片段再合拢一次，避免对齐后留下不足一帧的缝隙。

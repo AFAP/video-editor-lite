@@ -1213,18 +1213,17 @@ test('manual lengths snap to the 0.1s grid while Alt keeps free values',()=>{
   assert.ok(Math.abs(api.snapStep(3.38,0)-3.38)<1e-12,'Alt bypasses the grid');
 });
 
-test('alignment check reports off-grid lengths and sub-frame seams, and the fix lands on 0.1s boundaries',()=>{
+test('alignment check looks at clip lengths and sub-frame seams, and leaves clip positions alone',()=>{
   const {api}=editor(),{source,clip}=seed(api);
-  clip.in=0;clip.out=3.38;clip.start=0;
-  const next=api.appendClip(source,0,3.38);next.start=3.39;
+  clip.in=0;clip.out=3.38;clip.start=0.38;
+  const next=api.appendClip(source,0,3.38);next.start=clip.start+clip.out-clip.in+0.01;
   const issues=api.alignmentIssues();
-  assert.ok(issues.some(issue=>issue.type==='grid'&&issue.clip.id===clip.id),'two-decimal length is flagged');
+  const lengths=issues.filter(issue=>issue.type==='length').map(issue=>issue.clip.id);
+  assert.equal(lengths.join(','),[clip.id,next.id].join(','),'two-decimal lengths are flagged, off-grid starts are not');
   assert.ok(issues.some(issue=>issue.type==='gap'&&issue.clip.id===next.id),'sub-frame gap is flagged');
   api.applyAlignmentFix();
-  for(const item of api.S.clips){
-    assert.ok(Math.abs(item.start*10-Math.round(item.start*10))<1e-6,'start sits on the 0.1s grid');
-    assert.ok(Math.abs((item.out-item.in)*10-Math.round((item.out-item.in)*10))<1e-6,'length sits on the 0.1s grid');
-  }
-  assert.equal(api.alignmentIssues().filter(issue=>issue.type!=='grid').length,0,'seams are closed');
-  assert.ok(Math.abs(api.S.clips[1].start-api.S.clips[0].start-(api.S.clips[0].out-api.S.clips[0].in))<1e-6,'clips stay contiguous');
+  for(const item of api.S.clips)assert.ok(Math.abs((item.out-item.in)*10-Math.round((item.out-item.in)*10))<1e-6,'length sits on the 0.1s grid');
+  assert.equal(api.S.clips[0].start,0.38,'positions are left untouched');
+  assert.equal(api.alignmentIssues().filter(issue=>issue.type!=='length').length,0,'seams are closed');
+  assert.ok(Math.abs(api.S.clips[1].start-(api.S.clips[0].start+api.S.clips[0].out-api.S.clips[0].in))<1e-6,'clips stay contiguous');
 });
