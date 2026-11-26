@@ -109,13 +109,13 @@ svg {
   min-height:600px;
   display:grid;
   grid-template-columns:minmax(0,1fr);
-  grid-template-rows:64px minmax(0,1fr) 29px
+  grid-template-rows:54px minmax(0,1fr) 29px
 }
 .app-header {
   display:flex;
   align-items:center;
-  padding:0 24px;
-  gap:22px;
+  padding:0 18px;
+  gap:18px;
   border-bottom:1px solid var(--line);
   background:#191b1d
 }
@@ -126,8 +126,8 @@ svg {
   white-space:nowrap
 }
 .brand-mark {
-  width:30px;
-  height:30px;
+  width:26px;
+  height:26px;
   border-radius:9px;
   display:grid;
   place-items:center;
@@ -135,11 +135,11 @@ svg {
   color:#17221a
 }
 .brand-mark svg {
-  width:20px;
-  height:20px
+  width:17px;
+  height:17px
 }
 .brand strong {
-  font-size:18px;
+  font-size:16px;
   font-weight:650;
   letter-spacing:2px
 }
@@ -292,7 +292,7 @@ main {
   display:flex;
   align-items:center;
   gap:8px;
-  height:48px;
+  height:38px;
   padding:0 18px;
   flex:none;
   border-bottom:1px solid var(--line)
@@ -537,7 +537,7 @@ main {
   min-height:0;
   display:grid;
   grid-template-columns:minmax(0,1fr);
-  grid-template-rows:48px minmax(0,1fr) 56px;
+  grid-template-rows:38px minmax(0,1fr) 56px;
   background:#111315
 }
 .preview-heading {
@@ -834,6 +834,41 @@ main {
   font-size:10px;
   color:var(--faint)
 }
+.selection-name {
+  display:flex;
+  align-items:flex-start;
+  gap:6px
+}
+.selection-name strong {
+  flex:1;
+  min-width:0
+}
+.replace-btn {
+  flex:none;
+  width:20px;
+  height:20px;
+  padding:0;
+  margin-top:1px;
+  border:1px solid transparent;
+  border-radius:5px;
+  color:var(--faint)
+}
+.replace-btn .ico {
+  width:13px;
+  height:13px
+}
+.replace-btn:hover {
+  color:var(--accent);
+  border-color:var(--line2)
+}
+.kf-actions.compact {
+  gap:4px
+}
+.kf-actions.compact .btn {
+  height:23px;
+  padding:0 8px;
+  font-size:10.5px
+}
 details {
   border-top:1px solid var(--line);
   padding-top:12px;
@@ -1088,6 +1123,8 @@ input[type=checkbox] {
   color:var(--faint);
   white-space:nowrap
 }
+.chip-align{border:1px solid #6d551f;background:#2c2410;color:#f1c666;border-radius:999px;padding:2px 9px;font:inherit;font-size:10px;line-height:16px;white-space:nowrap;cursor:pointer}
+.chip-align:hover{background:#3b2f14;color:#ffd986}.chip-align:focus-visible{outline:1px solid #f1c666;outline-offset:1px}
 .zoom-group {
   display:flex;
   align-items:center;
@@ -2021,7 +2058,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
   <div class="brand"><span class="brand-mark"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 9 11 11M9 15 20 4"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/></svg></span><strong>轻剪</strong><small>LITE VIDEO EDITOR</small></div>
   <span class="header-divider"></span>
   <div class="project-actions"><button class="icon-btn" id="btnOpenProject" title="打开工程" aria-label="打开工程">▱</button><button class="icon-btn" id="btnSaveProject" title="保存工程 (Ctrl+S)" aria-label="保存工程">▣</button></div>
-  <label class="project"><input id="projectName" aria-label="项目名称" placeholder="未命名项目" maxlength="80"><small>本地剪辑工作台</small></label>
+  <label class="project"><input id="projectName" aria-label="项目名称" placeholder="未命名项目" maxlength="80"></label>
   <span class="grow"></span>
   <div class="header-actions">
     <button class="badge" id="bridgeBadge" title="重新检测本机 FFmpeg">正在连接…</button>
@@ -2062,9 +2099,9 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
 <section id="multiPanel" class="multi-panel" hidden><b id="multiCount">0 项已选择</b><button class="btn sm" id="btnPasteMultiProperties">粘贴属性…</button><button class="btn sm" id="btnGroup">分组</button><button class="btn sm" id="btnUngroup">取消分组</button><p class="note">Shift / Ctrl 点击多选，空白处拖动框选；拖动组内片段可整体移动。</p></section>
 <section class="panel" id="transitionPanel" hidden><div class="selection-card"><span class="eyebrow">已选转场</span><strong id="transitionItemName">叠化</strong><span id="transitionItemSources"></span></div><div class="fld"><span>效果</span><select id="transitionItemType" aria-label="转场效果"><option value="fade">叠化</option><option value="wipeleft">向右擦拭</option><option value="wiperight">向左擦拭</option><option value="slideleft">向左滑动</option><option value="slideright">向右滑动</option></select></div><div class="fld"><span>时长</span><input id="transitionItemDuration" type="number" min="0.01" step="0.1" value="0.5" aria-label="已选转场时长"><span>秒</span></div><div id="transitionItemRange"></div><div class="transition-actions"><button class="btn primary" id="btnPreviewTransition">▶ 播放转场预览</button><button class="btn" id="btnRemoveTransition">移除转场</button></div><details class="transition-demo-fold"><summary>查看效果样片</summary><div class="transition-demo"><canvas id="transitionItemCanvas" width="320" height="180" aria-label="已选转场效果样片"></canvas></div></details><p class="note">播放预览使用时间线上的真实画面。拖动转场块右侧可调整时长；其他轨道保持原位。</p></section>
     <section class="panel" id="clipPanel" style="display:none">
-        <div class="selection-card"><span class="eyebrow">当前片段</span><strong id="clipName"></strong><span id="clipMeta"></span></div>
+        <div class="selection-card"><span class="eyebrow">当前片段</span><div class="selection-name"><strong id="clipName"></strong><button class="icon-btn replace-btn" id="btnReplaceClip" title="原位替换素材…" aria-label="原位替换素材"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 8h13m0 0-3-3m3 3-3 3M20 16H7m0 0 3-3m-3 3 3 3"/></svg></button></div><span id="clipMeta"></span></div>
         <details open><summary>时间线位置</summary><div class="fld"><span>轨道</span><select id="cpTrack" aria-label="片段所在轨道"></select></div><div class="fld"><span>开始</span><input id="cpAt" aria-label="片段开始时间" type="number" min="0" step="0.01"></div></details>
-        <div class="kf-actions"><button class="btn sm" id="btnCopyProperties">复制属性</button><button class="btn sm" id="btnPasteProperties">粘贴属性…</button><button class="btn sm" id="btnReplaceClip">替换素材…</button><button class="btn sm" id="btnVideoCaptions">自动字幕…</button></div><details open><summary>裁剪区间 <span>秒</span></summary><div class="trim-fields">
+        <div class="kf-actions compact"><button class="btn sm" id="btnCopyProperties">复制属性</button><button class="btn sm" id="btnPasteProperties">粘贴属性…</button><button class="btn sm" id="btnVideoCaptions">自动字幕…</button></div><details open><summary>裁剪区间 <span>秒</span></summary><div class="trim-fields">
           <label>入点<input type="number" id="cpIn" min="0" step="0.01"></label>
           <label>出点<input type="number" id="cpOut" min="0.1" step="0.01"></label>
         </div><div class="note" id="clipDuration"></div></details>
@@ -2124,7 +2161,7 @@ main{grid-template-rows:minmax(0,1fr) var(--timeline-height,310px)}
     <button class="tool-btn" id="btnAddText" title="添加文字 (T)" aria-label="添加文字 (T)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16M12 5v15M8 20h8"/></svg>文字<kbd>T</kbd></button>
     <button class="tool-btn" id="btnDuplicate" title="复制片段或文字 (Ctrl+D)" aria-label="复制片段或文字 (Ctrl+D)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M15 8V4H4v11h4"/></svg><span>复制</span></button>
     <button class="tool-btn" id="btnDel" title="删除所选 (Delete)" aria-label="删除所选 (Delete)"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg><span>删除</span></button>
-    <button class="tool-btn" id="btnRippleDelete" title="Shift+Delete：删除所选时间区间，未锁定轨道同步收拢">波纹删除</button><button class="tool-btn" id="btnCloseGaps" title="清除所有轨道均无内容的空白区间；锁定轨道不移动">清除空隙</button><button class="tool-btn" id="btnAlignClips" title="检查不在 0.1 秒网格上的片段和同轨小于一帧的缝隙，可一键对齐">对齐检查</button><button class="tool-btn" id="btnImageDurations" title="批量修改图片时长并顺延本轨后续片段">图片时长</button><button class="tool-btn" id="btnCaptions" title="搜索、编辑字幕，点击时间定位画面">字幕</button><span class="sep"></span><label class="track-adder"><span>＋ 添加轨道 ▾</span><select id="trackAdder" aria-label="动态添加轨道" title="可继续添加画面、音频或文字轨道"><option value="">选择要添加的轨道</option><option value="visual">画面轨（视频 / 图片）</option><option value="audio">音频轨（配乐 / 旁白）</option><option value="text">文字轨</option></select></label><span class="grow"></span><span class="chip" id="chipInfo">0 段</span><span class="sep"></span>
+    <button class="tool-btn" id="btnRippleDelete" title="Shift+Delete：删除所选时间区间，未锁定轨道同步收拢">波纹删除</button><button class="tool-btn" id="btnCloseGaps" title="清除所有轨道均无内容的空白区间；锁定轨道不移动">清除空隙</button><button class="tool-btn" id="btnAlignClips" title="检查不在 0.1 秒网格上的片段和同轨小于一帧的缝隙，可一键对齐">对齐检查</button><button class="tool-btn" id="btnImageDurations" title="批量修改图片时长并顺延本轨后续片段">图片时长</button><button class="tool-btn" id="btnCaptions" title="搜索、编辑字幕，点击时间定位画面">字幕</button><span class="sep"></span><label class="track-adder"><span>＋ 添加轨道 ▾</span><select id="trackAdder" aria-label="动态添加轨道" title="可继续添加画面、音频或文字轨道"><option value="">选择要添加的轨道</option><option value="visual">画面轨（视频 / 图片）</option><option value="audio">音频轨（配乐 / 旁白）</option><option value="text">文字轨</option></select></label><span class="grow"></span><span class="chip" id="chipInfo">0 段</span><button class="chip-align" id="chipAlignHint" hidden title="有片段的时间线长度不是 0.1 秒的整数倍，点击查看并可一键整理"></button><span class="sep"></span>
     <div class="zoom-group"><button class="icon-btn" id="btnZoomOut" title="缩小时间线" aria-label="缩小时间线"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><span id="zoomLabel">适应</span><button class="icon-btn" id="btnZoomIn" title="放大时间线" aria-label="放大时间线"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="btn ghost sm" id="btnFit" title="让所有片段适应窗口">适应</button></div>
   </div>
   <div class="tl-body"><div class="tl-head-viewport"><div class="tl-head" id="trackHeads"></div></div>
@@ -2238,6 +2275,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
 const pad = (n, w = 2) => String(n).padStart(w, '0');
 const MIN_CLIP = 0.1;
+// 片段长度以 0.1 秒为单位整理：拖动裁剪吸附、对齐检查、工具栏提示都用这个步长。
+const ALIGN_STEP = 0.1;
 
 function fmt(sec) {
   const v = Math.max(0, Number(sec) || 0);
@@ -4102,6 +4141,7 @@ function updateSummary() {
   $('#btnStart').disabled = !totalDuration() || S.rendering;
   $('#btnExport').disabled = (!totalDuration() && !savedExportJob()) || S.rendering;
   $('#btnCancel').style.display = S.rendering ? '' : 'none';
+  refreshAlignHint();
   refreshEditorUi();
   updateOutputNote();
 }
@@ -5718,8 +5758,10 @@ function rippleDelete(){
   removeTimeIntervals(intervals);finishEdit();toast('已波纹删除，未锁定轨道同步收拢；可撤销');
 }
 /* ------------------------------------------------------- 片段对齐检查 */
-const ALIGN_STEP=0.1;
-function alignGridOk(value){const scaled=value/ALIGN_STEP;return Math.abs(scaled-Math.round(scaled))<1e-6;}
+// 判断用界面上显示到百分之一秒的长度：显示是 4.30 就不再提示，
+// 分割片段、读工程留下的浮点尾巴不会造成「显示 4.30 却说没对齐」。
+function displayLength(value){return Number(Number(value).toFixed(2));}
+function alignGridOk(value){const shown=displayLength(value);return Math.abs(shown-Math.round(shown*10)/10)<1e-9;}
 function clipEnd(clip){return clip.start+(clip.out-clip.in);}
 function alignmentIssues(){
   const frame=1/Math.max(1,Number(settings.fps)||30),issues=[];
@@ -5737,6 +5779,19 @@ function alignmentIssues(){
     }
   }
   return issues;
+}
+function refreshAlignHint(){
+  const el=$('#chipAlignHint');
+  if(!el)return;
+  const count=S.clips.filter(clip=>!alignGridOk(clip.out-clip.in)).length;
+  el.hidden=!count;
+  el.textContent=count?count+' 段长度不是 0.1 秒':'';
+  el.title=count?'有 '+count+' 个片段的时间线长度带 0.01 秒（例如素材原始时长 3.93），点击查看并一键整理成 0.1 秒':'';
+}
+function openAlignmentCheck(){
+  if(S.rendering||S.busy)return toast('请等待当前任务完成',true);
+  renderAlignmentCheck();
+  $('#alignDialog').showModal();
 }
 function renderAlignmentCheck(){
   const issues=alignmentIssues(),lengths=issues.filter(issue=>issue.type==='length').length,seams=issues.length-lengths;
@@ -5945,7 +6000,8 @@ function applyCaptionStyle(scope='track'){
   finishEdit();toast('已统一 '+targets.length+' 条文字样式，内容与时间保持原样');
 }
 $('#btnRippleDelete').addEventListener('click',rippleDelete);$('#btnCloseGaps').addEventListener('click',closeTimelineGaps);
-$('#btnAlignClips').addEventListener('click',()=>{if(S.rendering||S.busy)return toast('请等待当前任务完成',true);renderAlignmentCheck();$('#alignDialog').showModal();});
+$('#btnAlignClips').addEventListener('click',openAlignmentCheck);
+$('#chipAlignHint').addEventListener('click',openAlignmentCheck);
 for(const id of ['#btnCloseAlign','#btnCloseAlign2'])$(id).addEventListener('click',()=>$('#alignDialog').close());
 $('#btnAlignApply').addEventListener('click',applyAlignmentFix);
 $('#btnGroup').addEventListener('click',()=>groupSelection());$('#btnUngroup').addEventListener('click',()=>groupSelection(true));

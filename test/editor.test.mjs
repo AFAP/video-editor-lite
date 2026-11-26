@@ -1213,6 +1213,14 @@ test('manual lengths snap to the 0.1s grid while Alt keeps free values',()=>{
   assert.ok(Math.abs(api.snapStep(3.38,0)-3.38)<1e-12,'Alt bypasses the grid');
 });
 
+test('lengths inside half a hundredth of the 0.1s grid are not reported',()=>{
+  const {api}=editor(),{clip}=seed(api);
+  clip.in=0;clip.out=4.2995;
+  assert.equal(api.alignmentIssues().filter(issue=>issue.type==='length').length,0,'4.2995 displays as 4.30 and counts as aligned');
+  clip.out=4.306;
+  assert.equal(api.alignmentIssues().filter(issue=>issue.type==='length').length,1,'4.306 displays as 4.31 and is reported');
+});
+
 test('alignment check looks at clip lengths and sub-frame seams, and leaves clip positions alone',()=>{
   const {api}=editor(),{source,clip}=seed(api);
   clip.in=0;clip.out=3.38;clip.start=0.38;
